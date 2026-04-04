@@ -1,7 +1,8 @@
 """SRE Incident Commander — core environment logic.
 
-Implements three incident scenarios with mock infrastructure, state machines,
-and shaped reward signals. No external dependencies beyond Python stdlib.
+Implements five incident scenarios (easy → expert) with mock infrastructure,
+state machines, and shaped reward signals. No external dependencies beyond
+Python stdlib.
 """
 
 import copy
@@ -633,8 +634,8 @@ _MAX_REWARDS = {
     "easy": 0.4,
     "medium": 1.0,
     "hard": 1.0,
-    "memory_leak": 0.9,
-    "cert_expiry": 0.95,
+    "medium-hard": 0.9,
+    "expert": 0.95,
 }
 
 
@@ -830,10 +831,6 @@ class SREIncidentEnvironment(Environment[SREAction, SREObservation, SREState]):
         else:
             reward = -0.05
             feedback = f"Unknown action type: {at}"
-
-        # --- Post-action queue dynamics ---
-        drain = ts.worker_replicas * 100
-        ts.queue_length = max(0, ts.queue_length + 0 - 0)  # already applied above
 
         # Update metrics
         ts.metrics["queue_depth"] = ts.queue_length

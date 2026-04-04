@@ -1,6 +1,6 @@
 """Baseline LLM agent for the SRE Incident Commander environment.
 
-Uses an OpenAI-compatible API to drive incident response across all three
+Uses an OpenAI-compatible API to drive incident response across all five
 tasks, emitting [START]/[STEP]/[END] log lines per the mandatory format.
 """
 
@@ -29,7 +29,7 @@ LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME", "")
 ENV_URL = os.getenv("ENV_URL", "http://localhost:7860")
 BENCHMARK = "sre_incident_commander"
 TASKS = ["easy", "medium", "hard", "memory_leak", "cert_expiry"]
-MAX_STEPS = 15
+MAX_STEPS = 20
 
 SYSTEM_PROMPT = """\
 You are an expert SRE Incident Commander. You are responsible for diagnosing \
@@ -128,6 +128,18 @@ VALID_ACTIONS = {
     "resolve_incident",
 }
 
+# Ordered by priority for the fallback text parser — diagnostic actions first,
+# resolve_incident last so it's only picked when nothing else matches.
+_ACTION_PRIORITY = [
+    "query_logs",
+    "kill_query",
+    "rollback_deployment",
+    "scale_service",
+    "restart_service",
+    "rotate_certs",
+    "resolve_incident",
+]
+
 
 def parse_action(text: str) -> Optional[SREAction]:
     """Extract an SREAction from LLM output text."""
@@ -151,8 +163,8 @@ def parse_action(text: str) -> Optional[SREAction]:
         except (json.JSONDecodeError, Exception):
             pass
 
-    # Fallback: search for action type name in text
-    for action_type in VALID_ACTIONS:
+    # Fallback: search for action type name in text (priority order)
+    for action_type in _ACTION_PRIORITY:
         if action_type in text.lower():
             return SREAction(
                 action_type=action_type,  # type: ignore[arg-type]
@@ -278,15 +290,17 @@ async def run_task(
 
                 # Build action string for logging
                 action_str = action.action_type
+                params = []
                 if action.service_name:
-                    action_str += f"({action.service_name}"
-                    if action.replicas:
-                        action_str += f",{action.replicas}"
-                    if action.version:
-                        action_str += f",{action.version}"
-                    if action.query_id:
-                        action_str += f",{action.query_id}"
-                    action_str += ")"
+                    params.append(action.service_name)
+                if action.replicas:
+                    params.append(str(action.replicas))
+                if action.version:
+                    params.append(action.version)
+                if action.query_id:
+                    params.append(action.query_id)
+                if params:
+                    action_str += f"({','.join(params)})"
 
                 log_step(
                     step=steps,
