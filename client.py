@@ -15,8 +15,11 @@ class SREIncidentEnv(EnvClient[SREAction, SREObservation, SREState]):
         return action.model_dump()
 
     def _parse_result(self, payload: Dict[str, Any]) -> StepResult[SREObservation]:
-        obs = SREObservation(**payload.get("observation", payload))
-        return StepResult(observation=obs, reward=obs.reward, done=obs.done)
+        obs_data = payload.get("observation", payload)
+        obs = SREObservation(**obs_data)
+        reward = payload.get("reward", obs.reward)
+        done = payload.get("done", obs.done)
+        return StepResult(observation=obs, reward=reward, done=done)
 
     def _parse_state(self, payload: Dict[str, Any]) -> SREState:
         return SREState(**payload)
