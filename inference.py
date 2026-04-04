@@ -228,6 +228,9 @@ def format_observation(obs: SREObservation) -> str:
 # ---------------------------------------------------------------------------
 
 
+MAX_CONVERSATION_MESSAGES = 16  # Keep system + last N messages to avoid context overflow
+
+
 async def run_task(
     task_id: str,
     llm: OpenAI,
@@ -258,6 +261,11 @@ async def run_task(
             ]
 
             while not obs.done and steps < MAX_STEPS:
+                # Truncate conversation to avoid exceeding LLM context window.
+                # Keep the system prompt (index 0) and the most recent messages.
+                if len(conversation) > MAX_CONVERSATION_MESSAGES:
+                    conversation = [conversation[0]] + conversation[-(MAX_CONVERSATION_MESSAGES - 1):]
+
                 # Get LLM response
                 try:
                     response = llm.chat.completions.create(

@@ -1518,19 +1518,16 @@ class SREIncidentEnvironment(Environment[SREAction, SREObservation, SREState]):
             if ts.rotated_certs:
                 feedback = "Certificates already rotated. Restart affected services to pick up new certs."
             elif not ts.identified_cert_issue:
-                reward = -0.05
-                feedback = (
-                    "Rotating certs blindly. It worked, but you should diagnose before acting. "
-                    "Check service-mesh-proxy logs to understand the root cause."
-                )
-                # Still allow it to work even without diagnosis
+                # Still allow it to work even without diagnosis, but penalise
                 ts.rotated_certs = True
                 ts.identified_cert_issue = True
                 ts.services["service-mesh-proxy"]["cert_status"] = "VALID"
                 ts.services["service-mesh-proxy"]["cert_expiry"] = "2027-04-05T00:00:00Z"
+                reward = -0.05
                 feedback = (
-                    "Certificates rotated successfully. New cert valid until 2027-04-05. "
-                    "BUT: services are still using cached expired certs. "
+                    "Rotating certs blindly — it worked, but you should diagnose before acting. "
+                    "New cert valid until 2027-04-05. "
+                    "Services are still using cached expired certs. "
                     "Restart api-gateway, payment-service, and worker-node to load new certs."
                 )
             else:
@@ -1557,7 +1554,7 @@ class SREIncidentEnvironment(Environment[SREAction, SREObservation, SREState]):
                     feedback = f"'{action.service_name}' already restarted with new certs."
                 else:
                     ts.restarted_services.add(action.service_name)
-                    svc_data = ts.services.get(action.service_name, {})
+                    svc_data = ts.services[action.service_name]
                     svc_data["status"] = "healthy"
                     svc_data["error_rate"] = 0.5
                     if "tls_errors" in svc_data:
