@@ -1,0 +1,64 @@
+name: sre_incident_commander
+version: "1.0.0"
+description: >
+  AI agent training environment for SRE incident response. The agent acts as
+  an Incident Commander diagnosing and resolving production infrastructure
+  incidents using mock services, metrics, alerts, and logs. Three difficulty
+  levels test scaling, rollback, and cascading-failure diagnosis skills.
+
+tasks:
+  - id: easy
+    name: "The Traffic Spike"
+    description: "Worker-node CPU overloaded and queue backlog growing. Scale workers to drain the queue."
+    difficulty: easy
+
+  - id: medium
+    name: "The Poison Pill"
+    description: "Bad deployment (v2.1.0) causing 15% API error rate. Diagnose via logs and rollback."
+    difficulty: medium
+
+  - id: hard
+    name: "The Cascading Lock"
+    description: "Database lock causing cascading failures across all services. Follow the diagnostic chain, kill the lock, then scale to recover."
+    difficulty: hard
+
+observation_space:
+  active_alerts: "List of active alert dicts with severity, service, message"
+  system_metrics: "CPU, memory, queue depth, error rate, latency, DB connections"
+  queried_logs: "Log output from the last query_logs action"
+  cloud_cost_usd: "Cumulative cloud cost for this episode"
+  uptime_percentage: "Current uptime percentage"
+  services: "Dict of service name -> status, replicas, version, etc."
+  feedback: "Textual feedback on the last action taken"
+  hint: "Progressive hint if the agent is stuck"
+  current_deployment_version: "Current deployed version of the primary service"
+  task_id: "Current task identifier"
+  difficulty: "easy, medium, or hard"
+  attempt_number: "Current step number"
+  max_attempts: "Maximum allowed steps"
+
+action_space:
+  action_type:
+    type: "Literal['scale_service', 'rollback_deployment', 'query_logs', 'kill_query', 'resolve_incident']"
+    description: "The type of SRE action to take"
+  service_name:
+    type: "str"
+    description: "Target service (e.g. worker-node, api-gateway, database)"
+  replicas:
+    type: "int"
+    description: "Number of replicas for scale_service"
+  version:
+    type: "str"
+    description: "Target version for rollback_deployment"
+  query_id:
+    type: "str"
+    description: "Process/query ID for kill_query"
+  reasoning:
+    type: "str"
+    description: "Agent's reasoning for the action"
+
+reward:
+  type: continuous
+  range: [-0.50, 0.60]
+  per_step: true
+  episode_score: "Normalized to 0.0-1.0 via cumulative_reward / max_possible_reward"
