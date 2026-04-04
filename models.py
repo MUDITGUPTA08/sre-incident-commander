@@ -11,6 +11,8 @@ class SREAction(Action):
         "rollback_deployment",
         "query_logs",
         "kill_query",
+        "restart_service",
+        "rotate_certs",
         "resolve_incident",
     ]
     service_name: str = ""

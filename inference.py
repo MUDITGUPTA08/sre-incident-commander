@@ -28,7 +28,7 @@ LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME", "")
 # Environment server URL (where the OpenEnv server is running)
 ENV_URL = os.getenv("ENV_URL", "http://localhost:7860")
 BENCHMARK = "sre_incident_commander"
-TASKS = ["easy", "medium", "hard"]
+TASKS = ["easy", "medium", "hard", "memory_leak", "cert_expiry"]
 MAX_STEPS = 15
 
 SYSTEM_PROMPT = """\
@@ -59,7 +59,17 @@ You MUST respond with a single JSON object containing one of these actions:
    {"action_type": "kill_query", "query_id": "<pid>", "reasoning": "..."}
    ```
 
-5. **resolve_incident** — Declare the incident resolved.
+5. **restart_service** — Restart a service (rolling restart of all pods).
+   ```json
+   {"action_type": "restart_service", "service_name": "<service>", "reasoning": "..."}
+   ```
+
+6. **rotate_certs** — Rotate mTLS certificates in the service mesh.
+   ```json
+   {"action_type": "rotate_certs", "reasoning": "..."}
+   ```
+
+7. **resolve_incident** — Declare the incident resolved.
    ```json
    {"action_type": "resolve_incident", "reasoning": "..."}
    ```
@@ -113,6 +123,8 @@ VALID_ACTIONS = {
     "rollback_deployment",
     "query_logs",
     "kill_query",
+    "restart_service",
+    "rotate_certs",
     "resolve_incident",
 }
 

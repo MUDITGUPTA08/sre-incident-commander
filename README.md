@@ -1,24 +1,75 @@
+---
+title: SRE Incident Commander
+emoji: 🚨
+colorFrom: red
+colorTo: orange
+sdk: docker
+app_port: 7860
+tags:
+  - openenv
+---
+
 # SRE Incident Commander — OpenEnv Environment
 
 An AI agent training environment for **SRE incident response**. The agent acts as Incident Commander, diagnosing and resolving production infrastructure incidents using mock services, metrics, alerts, and logs.
 
+## Why SRE Incident Response?
+
+- Genuine real-world task performed daily at every tech company
+- Balances diagnostic reasoning (log analysis) with sequential decision-making (action ordering)
+- Natural difficulty progression: simple scaling -> diagnosis + rollback -> multi-step cascading failure
+- All infrastructure mocked via Python dicts/state machines — zero external dependencies, runs on 2 vCPU / 8 GB RAM
+- Novel domain not yet seen in the OpenEnv ecosystem
+
 ## Tasks
 
-| ID | Name | Difficulty | Description |
-|----|------|------------|-------------|
-| `easy` | The Traffic Spike | Easy | Scale workers to drain a growing message queue |
-| `medium` | The Poison Pill | Medium | Diagnose a bad deployment via logs and rollback |
-| `hard` | The Cascading Lock | Hard | Follow a diagnostic chain through cascading failures, kill a DB lock, then scale to recover |
+| ID | Name | Difficulty | Optimal Steps | Description |
+|----|------|------------|---------------|-------------|
+| `easy` | The Traffic Spike | Easy | 3 | Scale workers to drain a growing message queue before it overflows |
+| `medium` | The Poison Pill | Medium | 2 | Diagnose a bad deployment (v2.1.0) via logs, then rollback to v2.0.9 |
+| `hard` | The Cascading Lock | Hard | 5 | Follow a 3-service diagnostic chain, kill a DB lock (PID 4287), then scale to recover |
 
-## Actions
+## Action Space
 
 | Action | Fields | Description |
 |--------|--------|-------------|
-| `query_logs` | `service_name` | Retrieve logs from a service |
-| `scale_service` | `service_name`, `replicas` | Scale a service's replica count |
-| `rollback_deployment` | `service_name`, `version` | Roll back to a previous version |
-| `kill_query` | `query_id` | Kill a database query by PID |
+| `query_logs` | `service_name` | Retrieve logs from a service to diagnose issues |
+| `scale_service` | `service_name`, `replicas` | Scale a service's replica count up or down |
+| `rollback_deployment` | `service_name`, `version` | Roll back a service to a previous version |
+| `kill_query` | `query_id` | Kill a database query/process by PID |
 | `resolve_incident` | — | Declare the incident resolved |
+
+## Observation Space
+
+Each observation includes:
+- `active_alerts` — List of alerts with severity, service, and message
+- `system_metrics` — CPU, memory, queue depth, error rate, latency, DB connections
+- `services` — Status of each service (replicas, CPU, version, error rate, etc.)
+- `feedback` — Textual feedback on the last action taken
+- `hint` — Progressive hint if the agent is stuck
+- `cloud_cost_usd` / `uptime_percentage` — Ongoing cost and uptime tracking
+
+## Reward Design
+
+Shaped per-step rewards guide the agent toward optimal incident response:
+
+| Task | Key Rewards | Key Penalties |
+|------|-------------|---------------|
+| Easy | +0.2 for scaling workers, +0.2 when queue drains | -0.1 wrong action, -0.1 queue > 80% |
+| Medium | +0.4 for querying logs, +0.6 for correct rollback | **-0.5** for scaling a broken service (trap!) |
+| Hard | +0.1 per diagnostic step (x3), +0.4 kill lock, +0.3 scale | -0.1 scaling before killing the lock |
+
+Episode scores are normalized to `[0.0, 1.0]` by dividing cumulative reward by the maximum achievable.
+
+## Baseline Scores
+
+Optimal play (deterministic, no LLM needed):
+
+| Task | Steps | Score |
+|------|-------|-------|
+| Easy | 3 | 1.000 |
+| Medium | 2 | 1.000 |
+| Hard | 5 | 1.000 |
 
 ## Quick Start
 
@@ -30,7 +81,7 @@ pip install -r requirements.txt
 uvicorn server.app:app --port 7860
 
 # In another terminal, run the baseline agent
-HF_TOKEN=your_token python inference.py
+HF_TOKEN=your_token ENV_URL=http://localhost:7860 python inference.py
 ```
 
 ## Docker
@@ -44,15 +95,22 @@ docker run -p 7860:7860 sre-incident-env
 
 - `GET /` — Service info
 - `GET /health` — Health check
-- `GET /tasks` — List available tasks
-- `POST /reset` — Reset environment (pass `{"task_id": "easy|medium|hard"}`)
-- `POST /step` — Take an action
+- `GET /tasks` — List available tasks with descriptions
+- `POST /reset` — Reset environment (`{"task_id": "easy|medium|hard"}`)
+- `POST /step` — Take an action (`{"action": {"action_type": "...", ...}}`)
 - `GET /state` — Get current environment state
-
-## Scoring
-
-Each task has shaped per-step rewards. The episode score is normalized to `[0.0, 1.0]` by dividing cumulative reward by the maximum achievable reward for that task.
+- `WebSocket /ws` — Stateful session (used by EnvClient)
 
 ## Architecture
 
-All infrastructure is mocked via Python dicts and state machines — zero external dependencies, runs on 2 vCPU / 8 GB RAM.
+```
+models.py              # SREAction, SREObservation, SREState (Pydantic)
+client.py              # EnvClient subclass (WebSocket)
+inference.py           # Baseline LLM agent with [START]/[STEP]/[END] logging
+server/
+  __init__.py          # Package marker
+  app.py               # FastAPI + create_fastapi_app()
+  environment.py       # Core: mock infra, state machines, 3 tasks, graders
+```
+
+All infrastructure is mocked via Python dicts and state machines. Each task is a finite state machine with deterministic transitions. No external services, databases, or network calls required.

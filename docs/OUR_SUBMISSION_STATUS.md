@@ -16,7 +16,7 @@ An AI agent acts as Incident Commander diagnosing and resolving production infra
 | 2 | `openenv validate` passes | **PASS** | `[OK] meta: Ready for multi-mode deployment` |
 | 3 | Dockerfile builds | **TODO** | Need to test `docker build` |
 | 4 | Baseline `inference.py` runs without error, produces scores | **TODO** | Need HF_TOKEN + running server |
-| 5 | 3+ tasks with graders, scores 0.0–1.0 | **PASS** | easy, medium, hard — all verified |
+| 5 | 5 tasks with graders, scores 0.0–1.0 | **PASS** | easy, medium, hard, memory_leak, cert_expiry — all verified |
 | 6 | `inference.py` emits correct `[START]/[STEP]/[END]` format | **PASS** | Updated to match mandatory spec |
 | 7 | Uses OpenAI Client for LLM calls | **PASS** | `from openai import OpenAI` |
 | 8 | Env vars: `API_BASE_URL`, `MODEL_NAME`, `HF_TOKEN` | **PASS** | All defined with proper defaults |
@@ -34,10 +34,11 @@ An AI agent acts as Incident Commander diagnosing and resolving production infra
 
 ### Task & grader quality (25%) — Target: 20–25
 
-- 3 tasks: easy (Traffic Spike), medium (Poison Pill), hard (Cascading Lock)
+- 5 tasks: easy (Traffic Spike), medium (Poison Pill), hard (Cascading Lock), medium-hard (The Silent OOM / memory_leak), expert (The Midnight Expiry / cert_expiry)
 - All graders produce scores in 0.0–1.0 range
 - Graders are deterministic and reproducible
-- Hard task (Cascading Lock) requires 5-step diagnostic chain — genuinely challenging
+- 5 tasks spanning easy to expert difficulty — covers breadth and depth of real SRE incidents
+- Expert task (The Midnight Expiry) requires 7-step cert rotation chain — genuinely challenging
 - Difficulty progression is natural and well-motivated
 
 ### Environment design (20%) — Target: 16–20
@@ -63,6 +64,8 @@ An AI agent acts as Incident Commander diagnosing and resolving production infra
 
 - SRE incident response is a novel domain for OpenEnv
 - Interesting mechanics: diagnostic log chains, cascading failures, state machines
+- Memory leak diagnosis with red herring (scaling a leaking service = trap)
+- Multi-step cert rotation with red herring (rolling back a deploy that wasn't the cause)
 - Clever reward design: trap actions (scaling a buggy service = -0.5)
 - Progressive hints for stuck agents
 
@@ -75,6 +78,8 @@ An AI agent acts as Incident Commander diagnosing and resolving production infra
 | Easy | 3 | 1.000 | scale(5) → wait → auto-resolve |
 | Medium | 2 | 1.000 | query_logs → rollback(v2.0.9) |
 | Hard | 5 | 1.000 | query×3 → kill(4287) → scale(5) |
+| Memory Leak | 3 | 1.000 | query_logs(payment) → restart → rollback(v4.0.2) |
+| Cert Expiry | 7 | 1.000 | query×2 → query(mesh) → rotate_certs → restart×3 |
 
 ---
 

@@ -22,6 +22,16 @@ tasks:
     description: "Database lock causing cascading failures across all services. Follow the diagnostic chain, kill the lock, then scale to recover."
     difficulty: hard
 
+  - id: memory_leak
+    name: "The Silent OOM"
+    description: "Payment-service pods OOM-killing due to unbounded ProductCatalogCache in v4.1.0. Diagnose the leak via logs, mitigate with restart, then permanently fix by rolling back the deployment."
+    difficulty: medium-hard
+
+  - id: cert_expiry
+    name: "The Midnight Expiry"
+    description: "Expired mTLS certificate causing 95% TLS failures across all services. Navigate red herrings (recent deploy, CPU spike), trace to service-mesh-proxy, rotate certs, and restart all affected services."
+    difficulty: expert
+
 observation_space:
   active_alerts: "List of active alert dicts with severity, service, message"
   system_metrics: "CPU, memory, queue depth, error rate, latency, DB connections"
@@ -39,7 +49,7 @@ observation_space:
 
 action_space:
   action_type:
-    type: "Literal['scale_service', 'rollback_deployment', 'query_logs', 'kill_query', 'resolve_incident']"
+    type: "Literal['scale_service', 'rollback_deployment', 'query_logs', 'kill_query', 'restart_service', 'rotate_certs', 'resolve_incident']"
     description: "The type of SRE action to take"
   service_name:
     type: "str"
