@@ -1,7 +1,7 @@
 """Baseline LLM agent for the SRE Incident Commander environment.
 
 Uses an OpenAI-compatible API to drive incident response across all three
-tasks, emitting [START]/[STEP]/[END] log lines for the evaluation harness.
+tasks, emitting [START]/[STEP]/[END] log lines per the mandatory format.
 """
 
 import json
@@ -17,14 +17,19 @@ from client import SREIncidentEnv
 from models import SREAction, SREObservation
 
 # ---------------------------------------------------------------------------
-# Configuration
+# Configuration (mandatory env vars)
 # ---------------------------------------------------------------------------
 
-API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:7860")
-MODEL_NAME = os.environ.get("MODEL_NAME", "meta-llama/Llama-3.3-70B-Instruct")
-HF_TOKEN = os.environ.get("HF_TOKEN", "")
+API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
+MODEL_NAME = os.getenv("MODEL_NAME", "meta-llama/Llama-3.3-70B-Instruct")
+HF_TOKEN = os.getenv("HF_TOKEN") or os.getenv("API_KEY", "")
+LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME", "")
 
+# Environment server URL (where the OpenEnv server is running)
+ENV_URL = os.getenv("ENV_URL", "http://localhost:7860")
+BENCHMARK = "sre_incident_commander"
 TASKS = ["easy", "medium", "hard"]
+MAX_STEPS = 15
 
 SYSTEM_PROMPT = """\
 You are an expert SRE Incident Commander. You are responsible for diagnosing \
@@ -71,6 +76,32 @@ You MUST respond with a single JSON object containing one of these actions:
 Respond with ONLY a JSON object. No markdown, no explanation outside JSON.
 Include a "reasoning" field explaining your thought process.
 """
+
+
+# ---------------------------------------------------------------------------
+# Structured logging (mandatory format)
+# ---------------------------------------------------------------------------
+
+
+def log_start(task: str, env: str, model: str) -> None:
+    print(f"[START] task={task} env={env} model={model}", flush=True)
+
+
+def log_step(step: int, action: str, reward: float, done: bool, error: Optional[str]) -> None:
+    error_val = error if error else "null"
+    done_val = str(done).lower()
+    print(
+        f"[STEP] step={step} action={action} reward={reward:.2f} done={done_val} error={error_val}",
+        flush=True,
+    )
+
+
+def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> None:
+    rewards_str = ",".join(f"{r:.2f}" for r in rewards)
+    print(
+        f"[END] success={str(success).lower()} steps={steps} score={score:.2f} rewards={rewards_str}",
+        flush=True,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -128,7 +159,7 @@ def format_observation(obs: SREObservation) -> str:
     """Format an SREObservation into a readable prompt section."""
     parts = []
 
-    parts.append(f"=== INCIDENT STATUS ===")
+    parts.append("=== INCIDENT STATUS ===")
     parts.append(f"Task: {obs.task_id} ({obs.difficulty})")
     parts.append(f"Step: {obs.attempt_number}/{obs.max_attempts}")
     parts.append(f"Uptime: {obs.uptime_percentage}%  |  Cost: ${obs.cloud_cost_usd}")
@@ -177,119 +208,115 @@ async def run_task(
     task_id: str,
     llm: OpenAI,
     model: str,
+    env_url: str,
 ) -> Dict[str, Any]:
     """Run a single task episode and return results."""
-    print(f"[START] task={task_id} env=sre_incident_commander model={model}")
+    log_start(task=task_id, env=BENCHMARK, model=model)
 
-    async with SREIncidentEnv(base_url=API_BASE_URL) as env:
-        result = await env.reset(task_id=task_id)
-        obs = result.observation
+    rewards: List[float] = []
+    steps = 0
+    score = 0.0
+    success = False
 
-        conversation: List[Dict[str, str]] = [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": format_observation(obs)},
-        ]
+    try:
+        if LOCAL_IMAGE_NAME:
+            env = await SREIncidentEnv.from_docker_image(LOCAL_IMAGE_NAME)
+        else:
+            env = SREIncidentEnv(base_url=env_url)
 
-        rewards: List[float] = []
-        steps = 0
-        success = False
+        async with env:
+            result = await env.reset(task_id=task_id)
+            obs = result.observation
 
-        while not obs.done:
-            # Get LLM response
-            try:
-                response = llm.chat.completions.create(
-                    model=model,
-                    messages=conversation,
-                    temperature=0.1,
-                    max_tokens=512,
+            conversation: List[Dict[str, str]] = [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": format_observation(obs)},
+            ]
+
+            while not obs.done and steps < MAX_STEPS:
+                # Get LLM response
+                try:
+                    response = llm.chat.completions.create(
+                        model=model,
+                        messages=conversation,
+                        temperature=0.1,
+                        max_tokens=512,
+                    )
+                    llm_text = response.choices[0].message.content or ""
+                except Exception as e:
+                    print(f"[DEBUG] LLM call failed: {e}", file=sys.stderr, flush=True)
+                    llm_text = '{"action_type": "resolve_incident", "reasoning": "LLM error fallback"}'
+
+                conversation.append({"role": "assistant", "content": llm_text})
+
+                # Parse action
+                action = parse_action(llm_text)
+                if action is None:
+                    action = SREAction(
+                        action_type="resolve_incident",
+                        reasoning="Failed to parse action from LLM response",
+                    )
+
+                # Execute step
+                step_result = await env.step(action)
+                obs = step_result.observation
+                steps += 1
+                r = float(obs.reward) if obs.reward is not None else 0.0
+                rewards.append(r)
+
+                # Build action string for logging
+                action_str = action.action_type
+                if action.service_name:
+                    action_str += f"({action.service_name}"
+                    if action.replicas:
+                        action_str += f",{action.replicas}"
+                    if action.version:
+                        action_str += f",{action.version}"
+                    if action.query_id:
+                        action_str += f",{action.query_id}"
+                    action_str += ")"
+
+                log_step(
+                    step=steps,
+                    action=action_str,
+                    reward=r,
+                    done=obs.done,
+                    error=None,
                 )
-                llm_text = response.choices[0].message.content or ""
-            except Exception as e:
-                print(f"  [ERROR] LLM call failed: {e}", file=sys.stderr)
-                llm_text = '{"action_type": "resolve_incident", "reasoning": "LLM error fallback"}'
 
-            conversation.append({"role": "assistant", "content": llm_text})
-
-            # Parse action
-            action = parse_action(llm_text)
-            if action is None:
-                action = SREAction(
-                    action_type="resolve_incident",
-                    reasoning="Failed to parse action from LLM response",
+                # Add observation to conversation
+                conversation.append(
+                    {"role": "user", "content": format_observation(obs)}
                 )
-
-            # Execute step
-            step_result = await env.step(action)
-            obs = step_result.observation
-            steps += 1
-            r = obs.reward if obs.reward is not None else 0.0
-            rewards.append(r)
 
             score = obs.metadata.get("score", 0.0) if obs.metadata else 0.0
-            print(
-                f"[STEP] task={task_id} step={steps} "
-                f"action={action.action_type} reward={r:.3f} "
-                f"score={score:.3f} done={obs.done}"
-            )
+            success = score >= 0.5
 
-            # Add observation to conversation
-            conversation.append(
-                {"role": "user", "content": format_observation(obs)}
-            )
+    except Exception as e:
+        print(f"[DEBUG] Task {task_id} error: {e}", file=sys.stderr, flush=True)
 
-        final_score = obs.metadata.get("score", 0.0) if obs.metadata else 0.0
-        success = final_score >= 0.5
-        rewards_str = ",".join(f"{r:.3f}" for r in rewards)
+    log_end(success=success, steps=steps, score=score, rewards=rewards)
 
-        print(
-            f"[END] task={task_id} success={success} steps={steps} "
-            f"score={final_score:.3f} rewards={rewards_str}"
-        )
-
-        return {
-            "task_id": task_id,
-            "success": success,
-            "steps": steps,
-            "score": final_score,
-            "rewards": rewards,
-        }
+    return {
+        "task_id": task_id,
+        "success": success,
+        "steps": steps,
+        "score": score,
+        "rewards": rewards,
+    }
 
 
 async def main():
-    # Build LLM client
     llm = OpenAI(
-        base_url=(
-            "https://router.huggingface.co/together/v1"
-            if not os.environ.get("OPENAI_BASE_URL")
-            else os.environ["OPENAI_BASE_URL"]
-        ),
-        api_key=HF_TOKEN or os.environ.get("OPENAI_API_KEY", ""),
+        base_url=API_BASE_URL,
+        api_key=HF_TOKEN,
     )
     model = MODEL_NAME
 
-    print(f"SRE Incident Commander — Baseline Agent")
-    print(f"Model: {model}")
-    print(f"Environment: {API_BASE_URL}")
-    print("=" * 60)
-
     results = []
     for task_id in TASKS:
-        try:
-            result = await run_task(task_id, llm, model)
-            results.append(result)
-        except Exception as e:
-            print(f"[END] task={task_id} success=False steps=0 score=0.000 rewards= error={e}")
-            results.append({"task_id": task_id, "success": False, "score": 0.0})
-
-    print("\n" + "=" * 60)
-    print("SUMMARY")
-    print("=" * 60)
-    for r in results:
-        status = "PASS" if r.get("success") else "FAIL"
-        print(f"  {r['task_id']:8s}  {status}  score={r.get('score', 0):.3f}")
-
-    avg = sum(r.get("score", 0) for r in results) / max(len(results), 1)
-    print(f"\n  Average score: {avg:.3f}")
+        result = await run_task(task_id, llm, model, ENV_URL)
+        results.append(result)
 
 
 if __name__ == "__main__":
