@@ -1,6 +1,6 @@
 """Baseline LLM agent for the SRE Incident Commander environment.
 
-Uses an OpenAI-compatible API to drive incident response across all five
+Uses an OpenAI-compatible API to drive incident response across all six
 tasks, emitting [START]/[STEP]/[END] log lines per the mandatory format.
 """
 

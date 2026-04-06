@@ -2027,6 +2027,7 @@ class SREIncidentEnvironment(Environment[SREAction, SREObservation, SREState]):
                 )
             elif svc == "worker-node" and not ts.queried_worker_logs_ps:
                 ts.queried_worker_logs_ps = True
+                reward = 0.05
                 feedback = (
                     f"Logs for {svc}:\n{ts.logs[svc]}"
                 )

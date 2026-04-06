@@ -31,6 +31,7 @@ An AI agent training environment for **SRE incident response**. The agent acts a
 | `memory_leak` | The Silent OOM | Medium-Hard | 3 | Identify an unbounded ProductCatalogCache causing OOM kills, restart to mitigate, rollback to remove the leak |
 | `hard` | The Cascading Lock | Hard | 5 | Navigate red herrings (config change, cache spike), follow a 3-service diagnostic chain, kill a DB lock, then scale to recover |
 | `cert_expiry` | The Midnight Expiry | Expert | 7 | Trace TLS failures across 6 services past red herrings (recent deploy, CPU spike), find expired mTLS cert, rotate certs, restart 3 services |
+| `perfect_storm` | The Perfect Storm | Nightmare | 6 | Two simultaneous incidents: bad deploy + DB connection leak. Triage correctly — fix customer-facing errors first, then resolve DB leak, then clear backlog |
 
 ## Action Space
 
@@ -65,6 +66,7 @@ Shaped per-step rewards guide the agent toward optimal incident response:
 | Memory Leak | +0.3 diagnose leak, +0.1 restart, +0.5 rollback | **-0.15** for scaling a leaking service (trap!) |
 | Hard | +0.1 per diagnostic step (×3), +0.4 kill lock, +0.3 scale | -0.15 rollback red herring, -0.1 scaling before kill |
 | Cert Expiry | +0.2 find root cause, +0.3 rotate certs, +0.1 per restart | **-0.15** for rolling back a deploy that wasn't the cause |
+| Perfect Storm | +0.3 rollback deploy, +0.2 kill leak, +0.1 diagnose/scale | **-0.15** wrong triage order (fixing DB before rollback) |
 
 Episode scores are normalized to `[0.0, 1.0]` by dividing cumulative reward by the maximum achievable.
 
@@ -79,18 +81,20 @@ Episode scores are normalized to `[0.0, 1.0]` by dividing cumulative reward by t
 | Memory Leak | 3 | 1.000 |
 | Hard | 5 | 1.000 |
 | Cert Expiry | 7 | 1.000 |
+| Perfect Storm | 6 | 1.000 |
 
 **LLM baseline** (`meta-llama/Llama-3.3-70B-Instruct` via HuggingFace Inference API):
 
 | Task | Steps | Score |
 |------|-------|-------|
-| Easy | 3 | ~0.90 |
-| Medium | 4 | ~0.80 |
-| Memory Leak | 5 | ~0.70 |
-| Hard | 8 | ~0.55 |
-| Cert Expiry | 12 | ~0.40 |
+| Easy | 4 | 1.00 |
+| Medium | 2 | 1.00 |
+| Hard | 4 | 0.97 |
+| Memory Leak | 2 | 0.97 |
+| Cert Expiry | 9 | 0.53* |
+| Perfect Storm | 7 | 0.82 |
 
-*Scores are approximate and vary by run. Hard and Expert tasks genuinely challenge frontier models due to red herrings and multi-step diagnostic chains.*
+*Scores vary by run due to surface randomization. \*Cert Expiry score impacted by API rate limit mid-run; expected ~0.89 normally.*
 
 ## Environment Variables
 
@@ -126,7 +130,7 @@ docker run -p 7860:7860 sre-incident-env
 - `GET /` — Service info
 - `GET /health` — Health check
 - `GET /tasks` — List available tasks with descriptions
-- `POST /reset` — Reset environment (`{"task_id": "easy|medium|memory_leak|hard|cert_expiry"}`)
+- `POST /reset` — Reset environment (`{"task_id": "easy|medium|memory_leak|hard|cert_expiry|perfect_storm"}`)
 - `POST /step` — Take an action (`{"action": {"action_type": "...", ...}}`)
 - `GET /state` — Get current environment state
 - `WebSocket /ws` — Stateful session (used by EnvClient)
@@ -140,7 +144,7 @@ inference.py           # Baseline LLM agent with [START]/[STEP]/[END] logging
 server/
   __init__.py          # Package marker
   app.py               # FastAPI + create_fastapi_app()
-  environment.py       # Core: mock infra, state machines, 5 tasks, graders
+  environment.py       # Core: mock infra, state machines, 6 tasks, graders
 ```
 
 All infrastructure is mocked via Python dicts and state machines. Each task is a finite state machine with deterministic transitions. No external services, databases, or network calls required.

@@ -192,7 +192,7 @@ def root():
   <p class="desc">
     AI agent training environment for SRE incident response.
     Diagnose and resolve production infrastructure incidents across
-    five escalating scenarios &mdash; from traffic spikes to cascading failures.
+    six escalating scenarios &mdash; from traffic spikes to cascading failures.
   </p>
   <div class="badges">
     <span class="badge">OpenEnv Compatible</span>
@@ -250,7 +250,7 @@ def root():
   <!-- TASKS -->
   <div class="section">
     <div class="section-title">Incident Scenarios</div>
-    <p class="section-subtitle">Five scenarios with escalating difficulty, red herrings, and trap actions</p>
+    <p class="section-subtitle">Six scenarios with escalating difficulty, red herrings, and trap actions</p>
     <div class="task-grid">
 
       <div class="task-card">

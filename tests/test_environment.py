@@ -227,7 +227,7 @@ def test_reset_clears_state():
 def test_all_tasks_reset():
     """Every task can be reset without error."""
     env = make_env()
-    for task_id in ["easy", "medium", "hard", "memory_leak", "cert_expiry"]:
+    for task_id in ["easy", "medium", "hard", "memory_leak", "cert_expiry", "perfect_storm"]:
         obs = env.reset(task_id=task_id, noise_level=0.0)
         assert not obs.done
         assert obs.task_id == task_id

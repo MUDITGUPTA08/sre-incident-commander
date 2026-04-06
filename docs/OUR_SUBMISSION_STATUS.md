@@ -16,7 +16,7 @@ An AI agent acts as Incident Commander diagnosing and resolving production infra
 | 2 | `openenv validate` passes | **PASS** | `[OK] meta: Ready for multi-mode deployment` |
 | 3 | Dockerfile builds | **TODO** | Need to test `docker build` |
 | 4 | Baseline `inference.py` runs without error, produces scores | **TODO** | Need HF_TOKEN + running server |
-| 5 | 5 tasks with graders, scores 0.0–1.0 | **PASS** | easy, medium, hard, memory_leak, cert_expiry — all verified |
+| 5 | 6 tasks with graders, scores 0.0–1.0 | **PASS** | easy, medium, hard, memory_leak, cert_expiry, perfect_storm — all verified |
 | 6 | `inference.py` emits correct `[START]/[STEP]/[END]` format | **PASS** | Updated to match mandatory spec |
 | 7 | Uses OpenAI Client for LLM calls | **PASS** | `from openai import OpenAI` |
 | 8 | Env vars: `API_BASE_URL`, `MODEL_NAME`, `HF_TOKEN` | **PASS** | All defined with proper defaults |
@@ -34,11 +34,11 @@ An AI agent acts as Incident Commander diagnosing and resolving production infra
 
 ### Task & grader quality (25%) — Target: 20–25
 
-- 5 tasks: easy (Traffic Spike), medium (Poison Pill), hard (Cascading Lock), medium-hard (The Silent OOM / memory_leak), expert (The Midnight Expiry / cert_expiry)
+- 6 tasks: easy (Traffic Spike), medium (Poison Pill), medium-hard (Silent OOM), hard (Cascading Lock), expert (Midnight Expiry), nightmare (Perfect Storm)
 - All graders produce scores in 0.0–1.0 range
 - Graders are deterministic and reproducible
-- 5 tasks spanning easy to expert difficulty — covers breadth and depth of real SRE incidents
-- Expert task (The Midnight Expiry) requires 7-step cert rotation chain — genuinely challenging
+- 6 tasks spanning easy to nightmare difficulty — covers breadth and depth of real SRE incidents
+- Nightmare task (The Perfect Storm) requires multi-incident triage — unique in OpenEnv ecosystem
 - Difficulty progression is natural and well-motivated
 
 ### Environment design (20%) — Target: 16–20
