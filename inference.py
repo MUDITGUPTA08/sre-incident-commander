@@ -328,12 +328,15 @@ async def run_task(
             try:
                 st = await env.state()
                 score = st.current_score
+                timeline = st.timeline
             except Exception:
                 score = 0.0
+                timeline = []
             success = score >= 0.5
 
     except Exception as e:
         print(f"[DEBUG] Task {task_id} error: {e}", file=sys.stderr, flush=True)
+        timeline = []
 
     log_end(success=success, steps=steps, score=score, rewards=rewards)
 
@@ -343,6 +346,7 @@ async def run_task(
         "steps": steps,
         "score": score,
         "rewards": rewards,
+        "timeline": timeline,
     }
 
 
@@ -369,6 +373,26 @@ def print_summary(results: List[Dict[str, Any]]) -> None:
     print("=" * 65, flush=True)
 
 
+def print_trajectories(results: List[Dict[str, Any]]) -> None:
+    """Print per-task episode trajectory for debugging and evaluation."""
+    for r in results:
+        timeline = r.get("timeline", [])
+        if not timeline:
+            continue
+        print(f"\n--- Trajectory: {r['task_id']} ---", flush=True)
+        for entry in timeline:
+            target = entry.get("target") or ""
+            target_str = f"({target})" if target else ""
+            sign = "+" if entry["reward"] > 0 else "" if entry["reward"] < 0 else " "
+            print(
+                f"  step {entry['step']:>2}  {entry['action']}{target_str:<30s}  "
+                f"r={sign}{entry['reward']:.2f}  cum={entry['cumulative']:.2f}  "
+                f"[{entry['outcome']}]",
+                flush=True,
+            )
+        print(f"  => score={r['score']:.3f}", flush=True)
+
+
 async def main():
     llm = OpenAI(
         base_url=API_BASE_URL,
@@ -382,6 +406,7 @@ async def main():
         results.append(result)
 
     print_summary(results)
+    print_trajectories(results)
 
 
 if __name__ == "__main__":
