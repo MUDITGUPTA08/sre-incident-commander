@@ -1,6 +1,6 @@
 """SRE Incident Commander — core environment logic.
 
-Implements five incident scenarios (easy → expert) with mock infrastructure,
+Implements six incident scenarios (easy → nightmare) with mock infrastructure,
 state machines, and shaped reward signals. No external dependencies beyond
 Python stdlib.
 """
@@ -560,6 +560,139 @@ TASK_CONFIGS: Dict[str, Dict[str, Any]] = {
         },
         "deployment_version": "v3.2.1",
     },
+    "perfect_storm": {
+        "id": "perfect_storm",
+        "name": "The Perfect Storm",
+        "difficulty": "nightmare",
+        "description": (
+            "Two simultaneous incidents: a bad deployment (v6.0.0) on "
+            "api-gateway is causing 500 errors on /payments, AND a database "
+            "connection leak is slowly exhausting the connection pool. "
+            "Triage correctly — fix the customer-facing errors first, then "
+            "address the DB leak before it cascades."
+        ),
+        "max_attempts": 20,
+        "alerts": [
+            {
+                "severity": "critical",
+                "service": "api-gateway",
+                "message": "25% error rate on /payments endpoint — customers impacted",
+            },
+            {
+                "severity": "critical",
+                "service": "database",
+                "message": "Connection pool at 90% capacity (180/200)",
+            },
+            {
+                "severity": "warning",
+                "service": "worker-node",
+                "message": "CPU utilisation 85% — elevated retry activity",
+            },
+            {
+                "severity": "info",
+                "service": "api-gateway",
+                "message": "Deployment v6.0.0 completed 20 minutes ago",
+            },
+        ],
+        "services": {
+            "api-gateway": {
+                "status": "critical",
+                "replicas": 4,
+                "cpu": 72.0,
+                "version": "v6.0.0",
+                "error_rate": 25.0,
+            },
+            "database": {
+                "status": "degraded",
+                "connections": 180,
+                "max_connections": 200,
+                "leaking_queries": [
+                    {
+                        "pid": "5521",
+                        "state": "idle in transaction (aborted)",
+                        "connections_held": 45,
+                        "duration": "2h",
+                        "query": "EXECUTE prepared_stmt_product_sync",
+                    },
+                ],
+            },
+            "worker-node": {
+                "status": "degraded",
+                "replicas": 2,
+                "cpu": 85.0,
+                "version": "v3.8.1",
+            },
+            "cache-layer": {
+                "status": "degraded",
+                "hit_rate": 20.0,
+                "memory_percent": 50.0,
+            },
+            "payment-service": {
+                "status": "healthy",
+                "replicas": 3,
+                "cpu": 30.0,
+                "version": "v4.2.0",
+            },
+        },
+        "metrics": {
+            "cpu_percent": 85.0,
+            "memory_percent": 62.0,
+            "queue_depth": 350,
+            "error_rate_percent": 25.0,
+            "latency_p99_ms": 2800,
+            "db_connections": 180,
+        },
+        "logs": {
+            "api-gateway": (
+                "[2026-04-05T10:32:18Z] [CRITICAL] req_id=pay-9914 trace_id=tx-a8f3 java.lang.NullPointerException\n"
+                "[2026-04-05T10:32:18Z] [CRITICAL]   at com.app.gateway.PaymentRouter.routePayment(PaymentRouter.java:88)\n"
+                "[2026-04-05T10:32:18Z] [CRITICAL]   at com.app.gateway.ApiDispatcher.handle(ApiDispatcher.java:145)\n"
+                "[2026-04-05T10:32:15Z] [ERROR] req_id=pay-9912 trace_id=tx-a8f1 HTTP 500 on /payments — NPE in PaymentRouter\n"
+                "[2026-04-05T10:32:10Z] [ERROR] 25% of requests to /payments returning 500 since v6.0.0 rollout\n"
+                "[2026-04-05T10:31:55Z] [WARN]  error rate climbing: was 0.2% before deploy, now 25%\n"
+                "[2026-04-05T10:31:40Z] [WARN]  first errors correlate with v6.0.0 deployment timestamp (10:12:00Z)\n"
+                "[2026-04-05T10:31:30Z] [WARN]  upstream database: intermittent connection timeout (pool pressure)\n"
+                "[2026-04-05T10:31:00Z] [INFO]  v6.0.0 changelog: refactored PaymentRouter to support multi-currency\n"
+                "[2026-04-05T10:30:30Z] [INFO]  deployment history: v5.9.2 (7 days), v5.9.1 (14 days), v5.9.0 (21 days)\n"
+                "[2026-04-05T10:30:00Z] [INFO]  error rate before v6.0.0: 0.2% (baseline)\n"
+                "[2026-04-05T10:12:00Z] [INFO]  deployment v6.0.0 rolled out to all 4 pods"
+            ),
+            "database": (
+                "[2026-04-05T10:32:20Z] [CRITICAL] connection pool at 180/200 — 90% capacity, 20 connections remaining\n"
+                "[2026-04-05T10:32:15Z] [ERROR] pg_stat_activity: PID 5521 holding 45 connections in 'idle in transaction (aborted)' state\n"
+                "[2026-04-05T10:32:10Z] [ERROR] PID 5521: EXECUTE prepared_stmt_product_sync — abandoned 2 hours ago, never committed/rolled back\n"
+                "[2026-04-05T10:31:50Z] [WARN]  connection growth rate: +3 connections/min from leaked prepared statements\n"
+                "[2026-04-05T10:31:30Z] [WARN]  slow query log: 12 queries >5s due to connection contention\n"
+                "[2026-04-05T10:31:00Z] [INFO]  pg_stat_activity summary: 45 idle-in-transaction (PID 5521), 90 active, 45 idle\n"
+                "[2026-04-05T10:30:30Z] [INFO]  no recent schema changes or database deployments\n"
+                "[2026-04-05T10:30:00Z] [INFO]  connection pool max: 200, current: 180, available: 20\n"
+                "[2026-04-05T08:32:00Z] [INFO]  PID 5521 started prepared_stmt_product_sync at 08:32:00Z — still open"
+            ),
+            "worker-node": (
+                "[2026-04-05T10:32:22Z] [ERROR] retry loop: api-gateway /payments returning 500, attempt 8/10\n"
+                "[2026-04-05T10:32:20Z] [ERROR] connection refused from api-gateway:8080 — upstream overloaded\n"
+                "[2026-04-05T10:32:15Z] [WARN]  CPU 85% — elevated due to exponential backoff retry loops\n"
+                "[2026-04-05T10:32:10Z] [WARN]  retry backlog: 350 pending payment confirmations\n"
+                "[2026-04-05T10:31:50Z] [INFO]  retry policy: exponential backoff, max 10 attempts per request\n"
+                "[2026-04-05T10:31:30Z] [INFO]  worker-node v3.8.1 — no recent deployments, code healthy\n"
+                "[2026-04-05T10:31:00Z] [INFO]  CPU was 30% before api-gateway errors started"
+            ),
+            "cache-layer": (
+                "[2026-04-05T10:32:25Z] [INFO]  cache engine healthy — Redis process nominal\n"
+                "[2026-04-05T10:32:20Z] [INFO]  hit rate 20% — dropped from 88% baseline\n"
+                "[2026-04-05T10:32:15Z] [INFO]  miss rate correlates with reduced successful requests from api-gateway\n"
+                "[2026-04-05T10:32:00Z] [INFO]  no cache eviction pressure, memory 50% — within limits\n"
+                "[2026-04-05T10:31:30Z] [INFO]  cache keys TTL operating normally, no anomalies detected"
+            ),
+            "payment-service": (
+                "[2026-04-05T10:32:00Z] [INFO]  payment-service healthy — processing normally\n"
+                "[2026-04-05T10:31:30Z] [INFO]  CPU 30%, memory 45% — all metrics nominal\n"
+                "[2026-04-05T10:31:00Z] [INFO]  no errors in payment processing pipeline\n"
+                "[2026-04-05T10:30:30Z] [INFO]  v4.2.0 deployed 3 weeks ago — stable"
+            ),
+        },
+        "deployment_version": "v6.0.0",
+    },
 }
 
 
@@ -602,6 +735,24 @@ def _randomize_surface(ts: "_TaskState", rng: random.Random, noise: float) -> No
         # Update database locked_queries
         db = ts.services.get("database", {})
         for q in db.get("locked_queries", []):
+            if q.get("pid") in ts._random_pid_map:
+                q["pid"] = ts._random_pid_map[q["pid"]]
+
+        # Update log text
+        for svc in ts.logs:
+            for old, new in ts._random_pid_map.items():
+                ts.logs[svc] = ts.logs[svc].replace(f"PID {old}", f"PID {new}")
+                ts.logs[svc] = ts.logs[svc].replace(f"pid={old}", f"pid={new}")
+
+    # --- Randomise PIDs in perfect_storm task ---
+    elif ts.task_id == "perfect_storm":
+        old_pid = "5521"
+        new_pid = str(rng.randint(4000, 9999))
+        ts._random_pid_map = {old_pid: new_pid}
+
+        # Update database leaking_queries
+        db = ts.services.get("database", {})
+        for q in db.get("leaking_queries", []):
             if q.get("pid") in ts._random_pid_map:
                 q["pid"] = ts._random_pid_map[q["pid"]]
 
@@ -705,6 +856,15 @@ class _TaskState:
         self.rolled_back_deploy_ce: bool = False
         self.restarted_services: set = set()  # track which services restarted
 
+        # Task 6 — The Perfect Storm
+        self.queried_api_gw_logs_ps: bool = False
+        self.queried_db_logs_ps: bool = False
+        self.queried_worker_logs_ps: bool = False
+        self.rolled_back_api_gw: bool = False
+        self.killed_leak: bool = False
+        self.scaled_workers_ps: bool = False
+        self.has_triaged_correctly: bool = False  # rollback before kill_query
+
 
 # ---------------------------------------------------------------------------
 # Score helpers
@@ -716,6 +876,7 @@ _MAX_REWARDS = {
     "hard": 1.0,
     "medium-hard": 0.9,
     "expert": 0.95,
+    "nightmare": 0.8,
 }
 
 
@@ -813,6 +974,7 @@ class SREIncidentEnvironment(Environment[SREAction, SREObservation, SREState]):
             "hard": self._step_hard,
             "memory_leak": self._step_memory_leak,
             "cert_expiry": self._step_cert_expiry,
+            "perfect_storm": self._step_perfect_storm,
         }.get(ts.task_id, self._step_easy)
 
         reward, feedback, hint = handler(action)
@@ -1792,6 +1954,306 @@ class SREIncidentEnvironment(Environment[SREAction, SREObservation, SREState]):
             hint = (
                 f"Hint: Certs rotated, but services need restart to load new certs. "
                 f"Restart: {', '.join(sorted(remaining))}"
+            )
+
+        return reward, feedback, hint
+
+    # ==================================================================
+    # Task 6 — The Perfect Storm (Two simultaneous incidents)
+    # ==================================================================
+
+    def _step_perfect_storm(self, action: SREAction) -> tuple:
+        ts = self._ts
+        assert ts is not None
+        reward = 0.0
+        feedback = ""
+        hint = ""
+
+        # Resolve randomized PID for the leaking query
+        correct_leak_pid = ts._random_pid_map.get("5521", "5521")
+
+        # Ongoing degradation while deployment is bad
+        if not ts.rolled_back_api_gw:
+            ts.metrics["error_rate_percent"] = min(
+                40.0, ts.metrics["error_rate_percent"] + 2.0
+            )
+            ts.metrics["latency_p99_ms"] = min(
+                8000, ts.metrics["latency_p99_ms"] + 300
+            )
+            ts.uptime = max(60.0, ts.uptime - 1.0)
+
+        # Ongoing degradation while DB leak persists
+        if not ts.killed_leak:
+            ts.metrics["db_connections"] = min(
+                200, ts.metrics["db_connections"] + 3
+            )
+            ts.services["database"]["connections"] = ts.metrics["db_connections"]
+            if ts.metrics["db_connections"] >= 200:
+                if not any(
+                    "pool exhausted" in a.get("message", "").lower()
+                    for a in ts.alerts
+                ):
+                    ts.alerts.append(
+                        {
+                            "severity": "critical",
+                            "service": "database",
+                            "message": (
+                                "Connection pool EXHAUSTED (200/200). "
+                                "All new connections rejected."
+                            ),
+                        }
+                    )
+
+        at = action.action_type
+
+        if at == "query_logs":
+            svc = action.service_name
+            if svc not in ts.logs:
+                feedback = (
+                    f"No logs available for '{svc}'. "
+                    f"Valid services: {', '.join(ts.logs.keys())}"
+                )
+            elif svc == "api-gateway" and not ts.queried_api_gw_logs_ps:
+                ts.queried_api_gw_logs_ps = True
+                reward = 0.1
+                feedback = (
+                    f"Logs for {svc}:\n{ts.logs[svc]}"
+                )
+            elif svc == "database" and not ts.queried_db_logs_ps:
+                ts.queried_db_logs_ps = True
+                reward = 0.1
+                feedback = (
+                    f"Logs for {svc}:\n{ts.logs[svc]}"
+                )
+            elif svc == "worker-node" and not ts.queried_worker_logs_ps:
+                ts.queried_worker_logs_ps = True
+                feedback = (
+                    f"Logs for {svc}:\n{ts.logs[svc]}"
+                )
+            else:
+                feedback = f"Logs for {svc}:\n{ts.logs.get(svc, '(no logs)')}\n(Already reviewed or no new information)"
+
+        elif at == "rollback_deployment":
+            if action.service_name == "api-gateway":
+                if ts.rolled_back_api_gw:
+                    feedback = "Already rolled back api-gateway. Focus on the database connection leak."
+                elif action.version != "v5.9.2":
+                    reward = -0.1
+                    feedback = (
+                        f"Version '{action.version}' is not the correct rollback target. "
+                        "The last stable version is v5.9.2."
+                    )
+                else:
+                    ts.rolled_back_api_gw = True
+                    # Track triage order: rollback before kill = correct
+                    if not ts.killed_leak:
+                        ts.has_triaged_correctly = True
+                    ts.deployment_version = "v5.9.2"
+                    ts.services["api-gateway"]["version"] = "v5.9.2"
+                    ts.services["api-gateway"]["status"] = "recovering"
+                    ts.services["api-gateway"]["error_rate"] = 2.0
+                    ts.metrics["error_rate_percent"] = 2.0
+                    ts.metrics["latency_p99_ms"] = 800
+                    # Clear the deployment alert
+                    ts.alerts = [
+                        a for a in ts.alerts
+                        if "error rate" not in a.get("message", "").lower()
+                        and "v6.0.0" not in a.get("message", "")
+                    ]
+                    reward = 0.3
+                    feedback = (
+                        "Rolled back api-gateway from v6.0.0 to v5.9.2. "
+                        "Error rate dropped from 25% to 2%. Customer-facing "
+                        "/payments errors resolved. "
+                        "NOTE: Database connection pool still at "
+                        f"{ts.metrics['db_connections']}/200 — the connection "
+                        "leak is a separate issue that still needs attention."
+                    )
+            elif action.service_name == "database":
+                reward = -0.1
+                feedback = (
+                    "Database has had no recent deployments — there is nothing to "
+                    "roll back. The DB issue is a connection leak from abandoned "
+                    "prepared statements, not a bad deploy."
+                )
+            else:
+                reward = -0.1
+                feedback = (
+                    f"'{action.service_name}' does not need a rollback. "
+                    "The bad deployment is on api-gateway (v6.0.0)."
+                )
+
+        elif at == "kill_query":
+            if ts.killed_leak:
+                feedback = "Leaking query already killed. Connection pool is recovering."
+            elif action.query_id == correct_leak_pid:
+                ts.killed_leak = True
+                # Penalise wrong triage order: killing DB leak before rollback
+                if not ts.rolled_back_api_gw:
+                    reward = -0.15
+                    feedback = (
+                        f"Killed PID {correct_leak_pid} — 45 leaked connections released. "
+                        "BUT: You fixed the DB leak before rolling back the bad "
+                        "deployment. Customers are STILL seeing 500 errors on "
+                        "/payments from v6.0.0. Wrong triage order — always fix "
+                        "customer-facing issues first."
+                    )
+                else:
+                    reward = 0.2
+                    feedback = (
+                        f"Killed PID {correct_leak_pid} — 45 leaked connections released. "
+                        "Connection pool dropped to 135/200. Database recovering."
+                    )
+                # Update DB state regardless of order
+                ts.metrics["db_connections"] = max(
+                    100, ts.metrics["db_connections"] - 45
+                )
+                ts.services["database"]["connections"] = ts.metrics["db_connections"]
+                ts.services["database"]["leaking_queries"] = []
+                ts.services["database"]["status"] = "recovering"
+                ts.alerts = [
+                    a for a in ts.alerts
+                    if "connection pool" not in a.get("message", "").lower()
+                    and "pool exhausted" not in a.get("message", "").lower()
+                ]
+            else:
+                reward = -0.05
+                feedback = (
+                    f"PID '{action.query_id}' not found. Check the database logs — "
+                    f"the leaking process is PID {correct_leak_pid}."
+                )
+
+        elif at == "scale_service":
+            if action.service_name == "worker-node":
+                if not ts.rolled_back_api_gw:
+                    reward = -0.1
+                    feedback = (
+                        "Scaling worker-node won't help — the high CPU is caused "
+                        "by retry loops against the broken api-gateway. Fix the "
+                        "deployment (rollback v6.0.0) first, then scale if needed."
+                    )
+                elif action.replicas < 4:
+                    reward = -0.05
+                    feedback = (
+                        f"{action.replicas} replicas is not enough to clear the "
+                        "retry backlog. Scale to at least 4 replicas."
+                    )
+                elif ts.scaled_workers_ps:
+                    feedback = "Workers already scaled. System is recovering."
+                else:
+                    ts.scaled_workers_ps = True
+                    ts.services["worker-node"]["replicas"] = action.replicas
+                    ts.services["worker-node"]["cpu"] = 40.0
+                    ts.services["worker-node"]["status"] = "healthy"
+                    ts.metrics["cpu_percent"] = 40.0
+                    ts.metrics["queue_depth"] = 0
+                    reward = 0.1
+                    feedback = (
+                        f"Scaled worker-node to {action.replicas} replicas. "
+                        "CPU dropped to 40%, retry backlog cleared."
+                    )
+            else:
+                reward = -0.05
+                feedback = (
+                    f"'{action.service_name}' does not need scaling. "
+                    "The worker-node is the one with elevated CPU from retries."
+                )
+
+        elif at == "restart_service":
+            reward = -0.1
+            if action.service_name == "api-gateway":
+                feedback = (
+                    "Restarting api-gateway won't fix the code bug in v6.0.0 — "
+                    "it will just reload the same broken code. Roll back to v5.9.2."
+                )
+            elif action.service_name == "database":
+                feedback = (
+                    "Restarting the database is dangerous and unnecessary. "
+                    "Kill the leaking query (PID " + correct_leak_pid + ") instead."
+                )
+            else:
+                feedback = (
+                    f"Restarting '{action.service_name}' won't address either "
+                    "root cause (bad deploy + DB leak)."
+                )
+
+        elif at == "rotate_certs":
+            reward = -0.1
+            feedback = (
+                "No certificate issues detected. The problems are a bad "
+                "deployment on api-gateway and a database connection leak."
+            )
+
+        elif at == "resolve_incident":
+            if not ts.rolled_back_api_gw:
+                reward = -0.2
+                feedback = (
+                    "Cannot resolve — api-gateway is still running v6.0.0 with "
+                    f"{ts.metrics['error_rate_percent']}% error rate. "
+                    "Roll back the deployment first."
+                )
+            elif not ts.killed_leak:
+                reward = -0.1
+                feedback = (
+                    "Cannot resolve — database connection pool is still leaking "
+                    f"({ts.metrics['db_connections']}/200). Kill the leaking "
+                    f"query (PID {correct_leak_pid}) to reclaim connections."
+                )
+            else:
+                ts.done = True
+                # Final state cleanup
+                ts.services["api-gateway"]["status"] = "healthy"
+                ts.services["api-gateway"]["error_rate"] = 0.3
+                ts.services["database"]["status"] = "healthy"
+                ts.services["cache-layer"]["status"] = "healthy"
+                ts.services["cache-layer"]["hit_rate"] = 85.0
+                ts.metrics["error_rate_percent"] = 0.3
+                ts.metrics["latency_p99_ms"] = 120
+                ts.alerts = []
+                feedback = (
+                    "Incident resolved! Both root causes addressed: "
+                    "api-gateway rolled back to v5.9.2 (error rate 0.3%), "
+                    "database leak killed (connections stable). "
+                    "All services healthy."
+                )
+
+        else:
+            reward = -0.05
+            feedback = f"Unknown action type: {at}"
+
+        # Hints (progressive)
+        if ts.step_count >= 3 and not ts.queried_api_gw_logs_ps and not ts.queried_db_logs_ps:
+            hint = (
+                "Hint: Two critical alerts are firing. Start by querying logs "
+                "for api-gateway and database to understand both issues."
+            )
+        elif (
+            ts.step_count >= 5
+            and ts.queried_api_gw_logs_ps
+            and not ts.rolled_back_api_gw
+        ):
+            hint = (
+                "Hint: The api-gateway logs show NPE in v6.0.0 causing 25% errors. "
+                "Roll back to v5.9.2 to fix customer-facing errors first."
+            )
+        elif (
+            ts.step_count >= 7
+            and ts.rolled_back_api_gw
+            and not ts.killed_leak
+        ):
+            hint = (
+                f"Hint: Deployment fixed, but the DB connection leak persists. "
+                f"Kill PID {correct_leak_pid} to reclaim the 45 leaked connections."
+            )
+        elif (
+            ts.step_count >= 10
+            and ts.rolled_back_api_gw
+            and ts.killed_leak
+            and not ts.scaled_workers_ps
+        ):
+            hint = (
+                "Hint: Both root causes fixed. Scale worker-node to clear "
+                "the retry backlog, then resolve the incident."
             )
 
         return reward, feedback, hint

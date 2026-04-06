@@ -28,7 +28,7 @@ LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME", "")
 # Environment server URL (where the OpenEnv server is running)
 ENV_URL = os.getenv("ENV_URL", "http://localhost:7860")
 BENCHMARK = "sre_incident_commander"
-TASKS = ["easy", "medium", "hard", "memory_leak", "cert_expiry"]
+TASKS = ["easy", "medium", "hard", "memory_leak", "cert_expiry", "perfect_storm"]
 MAX_STEPS = 20
 
 SYSTEM_PROMPT = """\

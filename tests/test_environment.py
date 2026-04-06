@@ -244,10 +244,42 @@ def test_randomization_changes_pids():
     assert pid1 != pid2, "Different seeds should randomize PIDs"
 
 
+def test_perfect_storm_optimal():
+    env = make_env()
+    env.reset(task_id="perfect_storm", noise_level=0.0)
+
+    obs = env.step(SREAction(action_type="query_logs", service_name="api-gateway"))
+    assert obs.reward == 0.1
+
+    obs = env.step(SREAction(action_type="query_logs", service_name="database"))
+    assert obs.reward == 0.1
+
+    obs = env.step(SREAction(action_type="rollback_deployment", service_name="api-gateway", version="v5.9.2"))
+    assert obs.reward == 0.3
+
+    obs = env.step(SREAction(action_type="kill_query", query_id="5521"))
+    assert obs.reward == 0.2
+
+    obs = env.step(SREAction(action_type="scale_service", service_name="worker-node", replicas=4))
+    assert obs.reward == 0.1
+
+    score = env.state.current_score
+    assert score >= 0.99, f"Perfect storm optimal score should be ~1.0, got {score}"
+
+
+def test_perfect_storm_wrong_triage():
+    """Killing DB leak before rolling back deploy should be penalized."""
+    env = make_env()
+    env.reset(task_id="perfect_storm", noise_level=0.0)
+    env.step(SREAction(action_type="query_logs", service_name="database"))
+    obs = env.step(SREAction(action_type="kill_query", query_id="5521"))
+    assert obs.reward < 0, f"Wrong triage should be penalized, got reward={obs.reward}"
+
+
 def test_score_normalized_0_to_1():
     """Scores should always be in [0.0, 1.0]."""
     env = make_env()
-    for task_id in ["easy", "medium", "hard", "memory_leak", "cert_expiry"]:
+    for task_id in ["easy", "medium", "hard", "memory_leak", "cert_expiry", "perfect_storm"]:
         env.reset(task_id=task_id, noise_level=0.0)
         # Take several wrong actions
         for _ in range(3):

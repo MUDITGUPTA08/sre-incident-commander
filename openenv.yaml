@@ -3,8 +3,9 @@ version: "1.0.0"
 description: >
   AI agent training environment for SRE incident response. The agent acts as
   an Incident Commander diagnosing and resolving production infrastructure
-  incidents using mock services, metrics, alerts, and logs. Three difficulty
-  levels test scaling, rollback, and cascading-failure diagnosis skills.
+  incidents using mock services, metrics, alerts, and logs. Six difficulty
+  levels test scaling, rollback, cascading-failure diagnosis, and multi-incident
+  triage skills.
 
 tasks:
   - id: easy
@@ -32,10 +33,15 @@ tasks:
     description: "Expired mTLS certificate causing 95% TLS failures across all services. Navigate red herrings (recent deploy, CPU spike), trace to service-mesh-proxy, rotate certs, and restart all affected services."
     difficulty: expert
 
+  - id: perfect_storm
+    name: "The Perfect Storm"
+    description: "Two simultaneous incidents: bad deployment causing 500 errors AND database connection leak. Agent must triage correctly — fix customer-facing errors first, then resolve the DB leak, then clear the retry backlog."
+    difficulty: nightmare
+
 reset_params:
   task_id:
     type: "str"
-    description: "Task to run: easy, medium, hard, memory_leak, cert_expiry"
+    description: "Task to run: easy, medium, hard, memory_leak, cert_expiry, perfect_storm"
   noise_level:
     type: "float"
     description: "Surface randomization intensity 0.0-1.0 (default 0.3). Varies PIDs, metrics, request IDs to prevent memorisation. 0.0 = deterministic."
