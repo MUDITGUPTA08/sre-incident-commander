@@ -323,7 +323,13 @@ async def run_task(
                     {"role": "user", "content": format_observation(obs)}
                 )
 
-            score = obs.metadata.get("score", 0.0) if obs.metadata else 0.0
+            # The framework strips metadata from WS observations, so
+            # fetch the authoritative score from the state endpoint.
+            try:
+                st = await env.state()
+                score = st.current_score
+            except Exception:
+                score = 0.0
             success = score >= 0.5
 
     except Exception as e:

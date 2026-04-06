@@ -17,8 +17,14 @@ class SREIncidentEnv(EnvClient[SREAction, SREObservation, SREState]):
     def _parse_result(self, payload: Dict[str, Any]) -> StepResult[SREObservation]:
         obs_data = payload.get("observation", payload)
         obs = SREObservation(**obs_data)
+        # The framework puts reward/done at the top level of the payload,
+        # not inside the observation dict.
         reward = payload.get("reward", obs.reward)
         done = payload.get("done", obs.done)
+        # Patch reward/done back onto the observation so callers can access
+        # them from either obs or the StepResult.
+        obs.reward = reward
+        obs.done = done
         return StepResult(observation=obs, reward=reward, done=done)
 
     def _parse_state(self, payload: Dict[str, Any]) -> SREState:
