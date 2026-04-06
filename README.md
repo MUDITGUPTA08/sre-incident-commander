@@ -70,7 +70,7 @@ Episode scores are normalized to `[0.0, 1.0]` by dividing cumulative reward by t
 
 ## Baseline Scores
 
-Optimal play (deterministic, no LLM needed):
+**Optimal play** (deterministic, hand-crafted agent):
 
 | Task | Steps | Score |
 |------|-------|-------|
@@ -79,6 +79,27 @@ Optimal play (deterministic, no LLM needed):
 | Memory Leak | 3 | 1.000 |
 | Hard | 5 | 1.000 |
 | Cert Expiry | 7 | 1.000 |
+
+**LLM baseline** (`meta-llama/Llama-3.3-70B-Instruct` via HuggingFace Inference API):
+
+| Task | Steps | Score |
+|------|-------|-------|
+| Easy | 3 | ~0.90 |
+| Medium | 4 | ~0.80 |
+| Memory Leak | 5 | ~0.70 |
+| Hard | 8 | ~0.55 |
+| Cert Expiry | 12 | ~0.40 |
+
+*Scores are approximate and vary by run. Hard and Expert tasks genuinely challenge frontier models due to red herrings and multi-step diagnostic chains.*
+
+## Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `API_BASE_URL` | LLM API endpoint | `https://router.huggingface.co/v1` |
+| `MODEL_NAME` | Model identifier for inference | `meta-llama/Llama-3.3-70B-Instruct` |
+| `HF_TOKEN` / `OPENAI_API_KEY` | API key for LLM calls | — |
+| `ENV_URL` | Environment server URL | `http://localhost:7860` |
 
 ## Quick Start
 
@@ -123,6 +144,27 @@ server/
 ```
 
 All infrastructure is mocked via Python dicts and state machines. Each task is a finite state machine with deterministic transitions. No external services, databases, or network calls required.
+
+## Curriculum Learning Support
+
+The environment supports **surface randomization** for curriculum learning via the `noise_level` parameter:
+
+```python
+# Deterministic (for debugging/testing)
+await env.reset(task_id="hard", noise_level=0.0)
+
+# Light randomization (default)
+await env.reset(task_id="hard", noise_level=0.3)
+
+# Full randomization (for training — different PIDs, metrics, request IDs each episode)
+await env.reset(task_id="hard", noise_level=1.0, seed=42)
+```
+
+Randomization varies surface details (PIDs, CPU/memory values, request/trace IDs, queue depths) while preserving the logical structure. This prevents agents from memorizing fixed answers and enables genuine generalization.
+
+## Efficiency Scoring
+
+The environment rewards efficient incident resolution. Solving a task in fewer steps earns up to a 10% bonus on top of the base score, incentivizing agents to reason efficiently rather than exhaustively exploring.
 
 ## Log Realism
 

@@ -17,7 +17,7 @@ app = create_fastapi_app(
     env=SREIncidentEnvironment,
     action_cls=SREAction,
     observation_cls=SREObservation,
-    max_concurrent_envs=100,
+    max_concurrent_envs=10,
 )
 
 

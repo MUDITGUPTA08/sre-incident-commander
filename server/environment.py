@@ -6,6 +6,8 @@ Python stdlib.
 """
 
 import copy
+import random
+import re
 import uuid
 from typing import Any, Dict, List, Optional
 
@@ -74,8 +76,8 @@ TASK_CONFIGS: Dict[str, Dict[str, Any]] = {
                 "[2026-04-05T07:15:35Z] [WARN]  worker-node-1 CPU at 92% — kernel throttling cgroup cpu.cfs_quota_us\n"
                 "[2026-04-05T07:15:30Z] [WARN]  GC pause 450ms — heap pressure from message backlog in memory\n"
                 "[2026-04-05T07:15:00Z] [INFO]  consumer throughput: 100 msg/min per replica (2 replicas = 200 msg/min total)\n"
-                "[2026-04-05T07:15:00Z] [INFO]  current replicas: 2 — recommended: scale to 5+ to match inbound rate\n"
-                "[2026-04-05T07:14:30Z] [INFO]  autoscaler disabled (manual scaling mode) — operator action required\n"
+                "[2026-04-05T07:15:00Z] [INFO]  current replicas: 2, inbound rate: 400 msg/min, per-replica throughput: 100 msg/min\n"
+                "[2026-04-05T07:14:30Z] [INFO]  autoscaler disabled (manual scaling mode)\n"
                 "[2026-04-05T07:14:00Z] [ERROR] request queue backing up — consumer lag increasing at 200 msg/min"
             ),
             "order-processing-queue": (
@@ -89,7 +91,7 @@ TASK_CONFIGS: Dict[str, Dict[str, Any]] = {
             "api-gateway": (
                 "[2026-04-05T07:15:00Z] [INFO]  api-gateway healthy — no errors detected\n"
                 "[2026-04-05T07:14:30Z] [INFO]  latency p99: 450ms (elevated due to upstream worker backpressure)\n"
-                "[2026-04-05T07:14:00Z] [INFO]  not the source of this issue — problem is in worker-node capacity"
+                "[2026-04-05T07:14:00Z] [INFO]  api-gateway operating within normal parameters, forwarding requests to worker-node pool"
             ),
         },
         "deployment_version": "v1.4.0",
@@ -153,13 +155,13 @@ TASK_CONFIGS: Dict[str, Dict[str, Any]] = {
                 "[2026-04-05T08:00:00Z] [INFO]  worker-node processing normally — no errors in pipeline\n"
                 "[2026-04-05T07:59:30Z] [INFO]  message throughput: 150 msg/min — within normal range\n"
                 "[2026-04-05T07:59:00Z] [INFO]  CPU 30%, memory 45% — healthy\n"
-                "[2026-04-05T07:58:00Z] [INFO]  not affected by api-gateway issue — different code path"
+                "[2026-04-05T07:58:00Z] [INFO]  worker pipeline uses separate connection pool from api-gateway"
             ),
             "database": (
                 "[2026-04-05T08:00:00Z] [INFO]  connections: 60/200 — stable and healthy\n"
                 "[2026-04-05T07:59:30Z] [INFO]  query latency p99: 8ms — normal\n"
                 "[2026-04-05T07:59:00Z] [INFO]  no slow queries, no locks detected\n"
-                "[2026-04-05T07:58:00Z] [INFO]  database is NOT the source of this issue"
+                "[2026-04-05T07:58:00Z] [INFO]  all database metrics nominal, connection pool at 30% capacity"
             ),
             "cache-layer": (
                 "[2026-04-05T08:00:00Z] [INFO]  cache hit rate 85% — nominal\n"
@@ -377,7 +379,7 @@ TASK_CONFIGS: Dict[str, Dict[str, Any]] = {
                 "[2026-04-05T00:01:10Z] [WARN]  all inbound connections failing TLS validation\n"
                 "[2026-04-05T00:00:50Z] [INFO]  service code healthy — no application errors in payment logic\n"
                 "[2026-04-05T00:00:50Z] [INFO]  last code deploy: v4.1.0 (5 hours ago) — no TLS changes\n"
-                "[2026-04-05T00:00:30Z] [INFO]  check service-mesh-proxy for cert status"
+                "[2026-04-05T00:00:30Z] [INFO]  mTLS cert chain: payment-service -> envoy-sidecar -> mesh-ca (service-mesh-proxy)"
             ),
             "worker-node": (
                 "[2026-04-05T00:01:25Z] [ERROR] gRPC call to payment-service failed: UNAVAILABLE: TLS handshake error\n"
@@ -391,24 +393,24 @@ TASK_CONFIGS: Dict[str, Dict[str, Any]] = {
                 "[2026-04-05T00:01:30Z] [ERROR] SSL connection rejected: client certificate expired\n"
                 "[2026-04-05T00:01:28Z] [ERROR] only 12 connections active (normally 120+) — SSL clients can't connect\n"
                 "[2026-04-05T00:01:25Z] [WARN]  pg_hba.conf requires SSL for all connections — no fallback to plaintext\n"
-                "[2026-04-05T00:00:30Z] [INFO]  database engine healthy — issue is certificate-based, not data-layer\n"
-                "[2026-04-05T00:00:30Z] [INFO]  cert used for client auth issued by service-mesh CA — check mesh proxy"
+                "[2026-04-05T00:00:30Z] [INFO]  database engine healthy — pg_isready returns OK on unix socket (bypasses SSL)\n"
+                "[2026-04-05T00:00:30Z] [INFO]  client cert issuer: CN=mesh-ca, O=service-mesh-proxy; serial=0x3A7F"
             ),
             "service-mesh-proxy": (
-                "[2026-04-05T00:00:01Z] [CRITICAL] ROOT CAUSE: mTLS certificate expired at 2026-04-05T00:00:00Z\n"
+                "[2026-04-05T00:00:01Z] [CRITICAL] mTLS certificate expired at 2026-04-05T00:00:00Z\n"
                 "[2026-04-05T00:00:01Z] [CRITICAL] cert subject=*.internal.mesh, issuer=mesh-ca, notAfter=2026-04-05T00:00:00Z\n"
                 "[2026-04-05T00:00:01Z] [ERROR] envoy proxy: all mTLS handshakes failing — cert rotation required\n"
                 "[2026-04-05T00:00:00Z] [ERROR] certificate validity check: EXPIRED (was valid for 365 days, issued 2025-04-05)\n"
                 "[2026-04-04T23:55:00Z] [WARN]  cert expiry in 5 minutes — ALERT WAS SENT but not acknowledged\n"
                 "[2026-04-04T23:00:00Z] [WARN]  cert expiry in 1 hour — automated rotation failed: permission denied on vault\n"
                 "[2026-04-04T22:00:00Z] [INFO]  scheduled cert rotation attempted — vault token expired, rotation aborted\n"
-                "[2026-04-04T22:00:00Z] [INFO]  ACTION REQUIRED: manual cert rotation via rotate_certs command"
+                "[2026-04-04T21:30:00Z] [INFO]  vault-agent last token refresh: 2026-03-20 — token TTL 14d, expired 2026-04-03"
             ),
             "load-balancer": (
                 "[2026-04-05T00:01:30Z] [WARN]  CPU 88% — TLS retry storms from downstream services\n"
                 "[2026-04-05T00:01:20Z] [WARN]  1200 TLS retries/min — backends rejecting handshakes\n"
-                "[2026-04-05T00:01:00Z] [INFO]  load-balancer config unchanged — issue is backend TLS, not LB\n"
-                "[2026-04-05T00:00:30Z] [INFO]  external TLS (client-facing) is fine — issue is internal mTLS only"
+                "[2026-04-05T00:01:00Z] [INFO]  load-balancer config last modified: 2026-03-15, no recent changes\n"
+                "[2026-04-05T00:00:30Z] [INFO]  external TLS (Let's Encrypt, client-facing) valid until 2026-06-01; internal mTLS uses separate CA"
             ),
         },
         "deployment_version": "v5.0.0",
@@ -519,7 +521,7 @@ TASK_CONFIGS: Dict[str, Dict[str, Any]] = {
                 "[2026-04-05T08:29:30Z] [WARN]  connection pool to worker-node saturated: 100/100 active connections\n"
                 "[2026-04-05T08:29:00Z] [WARN]  circuit breaker OPEN for worker-node — 3 consecutive failures\n"
                 "[2026-04-05T08:28:00Z] [INFO]  api-gateway v3.2.1 — no recent code changes\n"
-                "[2026-04-05T08:28:00Z] [INFO]  investigate worker-node health — timeouts originate downstream"
+                "[2026-04-05T08:28:00Z] [INFO]  upstream dependency: worker-node:8080, database:5432"
             ),
             "worker-node": (
                 "[2026-04-05T08:30:20Z] [CRITICAL] pod worker-node-3 OOMKilled (exit 137): memory 1.9Gi/2Gi at time of kill\n"
@@ -529,9 +531,9 @@ TASK_CONFIGS: Dict[str, Dict[str, Any]] = {
                 "[2026-04-05T08:29:45Z] [ERROR] java.sql.SQLTimeoutException: query timed out after 30000ms\n"
                 "[2026-04-05T08:29:40Z] [WARN]  thread pool exhaustion: 100/100 threads blocked on DB I/O\n"
                 "[2026-04-05T08:29:00Z] [INFO]  config change 30 min ago: thread pool 50->100 — this increased DB connection demand\n"
-                "[2026-04-05T08:29:00Z] [INFO]  NOTE: thread pool increase is NOT the root cause — queries are hanging because of a DB lock, not capacity\n"
-                "[2026-04-05T08:28:30Z] [INFO]  OOM is a side-effect: blocked threads accumulate memory while waiting\n"
-                "[2026-04-05T08:28:00Z] [INFO]  root cause is in database layer — check database logs for locks"
+                "[2026-04-05T08:29:00Z] [INFO]  thread pool expanded from 50 to 100 threads 30 min ago\n"
+                "[2026-04-05T08:28:30Z] [INFO]  all 100 threads in TIMED_WAITING state — blocked on java.sql.Connection.execute()\n"
+                "[2026-04-05T08:28:00Z] [INFO]  JDBC connection pool stats: 100 active, 0 idle, avg query wait time: 31,204ms"
             ),
             "database": (
                 "[2026-04-05T08:30:25Z] [CRITICAL] LOCK ESCALATION: PID 4287 holding ROW EXCLUSIVE lock on 'orders' table for 45 minutes\n"
@@ -543,19 +545,92 @@ TASK_CONFIGS: Dict[str, Dict[str, Any]] = {
                 "[2026-04-05T08:29:00Z] [WARN]  PID 4290 (SELECT * FROM orders): WAITING on PID 4287 for 30 min\n"
                 "[2026-04-05T08:29:00Z] [WARN]  PID 4295 (INSERT INTO audit_log): WAITING on PID 4287 for 28 min\n"
                 "[2026-04-05T08:28:30Z] [INFO]  pg_stat_activity shows 47 queries in 'Lock wait' state\n"
-                "[2026-04-05T08:28:00Z] [INFO]  ACTION REQUIRED: kill PID 4287 to release exclusive lock\n"
-                "[2026-04-05T08:28:00Z] [INFO]  CAUTION: PID 4290 and 4295 are WAITING (victims, not blockers) — do not kill these"
+                "[2026-04-05T08:28:00Z] [INFO]  pg_locks: PID 4287 holds RowExclusiveLock, granted=true; PID 4290, PID 4295 hold RowExclusiveLock, granted=false\n"
+                "[2026-04-05T07:45:00Z] [INFO]  pg_stat_activity: PID 4287 state=active since 07:45:00Z, PID 4290 state=idle in transaction since 08:00:00Z"
             ),
             "cache-layer": (
                 "[2026-04-05T08:30:00Z] [WARN]  memory 85% — elevated but within safe operating range\n"
                 "[2026-04-05T08:29:30Z] [INFO]  hit rate dropped to 12% — consequence of reduced traffic, not a cache issue\n"
                 "[2026-04-05T08:29:00Z] [INFO]  cache invalidation and TTL operating normally\n"
-                "[2026-04-05T08:28:00Z] [INFO]  memory spike correlates with increased connection retry buffers — will normalise once upstream recovers"
+                "[2026-04-05T08:28:00Z] [INFO]  memory growth rate: +2MB/min (correlated with connection retry buffer allocation)"
             ),
         },
         "deployment_version": "v3.2.1",
     },
 }
+
+
+# ---------------------------------------------------------------------------
+# Surface randomization (keeps structure, varies details)
+# ---------------------------------------------------------------------------
+
+
+def _randomize_surface(ts: "_TaskState", rng: random.Random, noise: float) -> None:
+    """Randomize surface-level details to prevent memorisation.
+
+    *noise* in [0.0, 1.0] controls how much to vary:
+      0.0 = deterministic (no changes)
+      1.0 = max randomisation
+    """
+    if noise <= 0.0:
+        return
+
+    # --- Randomise numeric metrics by +-noise*20% ---
+    def jitter(val: float) -> float:
+        pct = noise * 0.20
+        return round(val * rng.uniform(1 - pct, 1 + pct), 1)
+
+    for k in ("cpu_percent", "memory_percent", "latency_p99_ms"):
+        if k in ts.metrics:
+            ts.metrics[k] = jitter(ts.metrics[k])
+
+    # Jitter queue depth (keep within +-15%)
+    if ts.queue_length > 0:
+        pct = noise * 0.15
+        ts.queue_length = max(100, int(ts.queue_length * rng.uniform(1 - pct, 1 + pct)))
+        ts.metrics["queue_depth"] = ts.queue_length
+
+    # --- Randomise PIDs in hard task ---
+    if ts.task_id == "hard":
+        old_pid = "4287"
+        new_pid = str(rng.randint(3000, 9999))
+        ts._random_pid_map = {old_pid: new_pid, "4290": str(rng.randint(3000, 9999))}
+
+        # Update database locked_queries
+        db = ts.services.get("database", {})
+        for q in db.get("locked_queries", []):
+            if q.get("pid") in ts._random_pid_map:
+                q["pid"] = ts._random_pid_map[q["pid"]]
+
+        # Update log text
+        for svc in ts.logs:
+            for old, new in ts._random_pid_map.items():
+                ts.logs[svc] = ts.logs[svc].replace(f"PID {old}", f"PID {new}")
+                ts.logs[svc] = ts.logs[svc].replace(f"pid={old}", f"pid={new}")
+    else:
+        ts._random_pid_map = {}
+
+    # --- Randomise service CPU/memory in service dicts ---
+    for svc_name, svc_data in ts.services.items():
+        if "cpu" in svc_data and isinstance(svc_data["cpu"], (int, float)):
+            svc_data["cpu"] = jitter(svc_data["cpu"])
+
+    # --- Randomise request/trace IDs in logs ---
+    def _replace_ids(text: str) -> str:
+        text = re.sub(
+            r"req_id=[a-z0-9-]+",
+            lambda _: f"req_id={rng.randbytes(3).hex()}",
+            text,
+        )
+        text = re.sub(
+            r"trace_id=[a-z0-9-]+",
+            lambda _: f"trace_id={rng.randbytes(4).hex()}",
+            text,
+        )
+        return text
+
+    for svc in list(ts.logs.keys()):
+        ts.logs[svc] = _replace_ids(ts.logs[svc])
 
 
 # ---------------------------------------------------------------------------
@@ -584,6 +659,8 @@ class _TaskState:
         self.uptime: float = 100.0
         self.actions_taken: List[str] = []
         self.done: bool = False
+        self._random_pid_map: Dict[str, str] = {}  # filled by _randomize_surface
+        self.timeline: List[Dict[str, Any]] = []  # structured post-mortem log
 
         # Task-specific flags ------------------------------------------------
         # Task 1
@@ -639,9 +716,19 @@ _MAX_REWARDS = {
 }
 
 
-def _normalised_score(difficulty: str, cumulative: float) -> float:
+def _normalised_score(
+    difficulty: str,
+    cumulative: float,
+    step_count: int = 0,
+    max_attempts: int = 10,
+) -> float:
     mx = _MAX_REWARDS.get(difficulty, 1.0)
-    return max(0.0, min(cumulative / mx, 1.0))
+    base = max(0.0, min(cumulative / mx, 1.0))
+    # Efficiency bonus: solving in fewer steps earns up to +10% bonus
+    if base > 0.0 and step_count > 0 and max_attempts > 0:
+        efficiency = 1.0 - (step_count / max_attempts)
+        base = min(1.0, base + efficiency * 0.1)
+    return round(base, 4)
 
 
 # ---------------------------------------------------------------------------
@@ -671,8 +758,15 @@ class SREIncidentEnvironment(Environment[SREAction, SREObservation, SREState]):
         if task_id not in TASK_CONFIGS:
             task_id = "easy"
 
+        noise_level = float(kwargs.get("noise_level", 0.3))
+        noise_level = max(0.0, min(1.0, noise_level))
+
         self._episode_id = episode_id or str(uuid.uuid4())
         self._ts = _TaskState(task_id)
+
+        # Apply surface randomization for curriculum learning
+        rng = random.Random(seed)
+        _randomize_surface(self._ts, rng, noise_level)
 
         return self._build_observation(
             reward=None,
@@ -722,6 +816,16 @@ class SREIncidentEnvironment(Environment[SREAction, SREObservation, SREState]):
 
         ts.cumulative_reward += reward
 
+        # Record timeline entry for post-mortem
+        ts.timeline.append({
+            "step": ts.step_count,
+            "action": action.action_type,
+            "target": action.service_name or action.query_id or None,
+            "reward": round(reward, 2),
+            "cumulative": round(ts.cumulative_reward, 2),
+            "outcome": "positive" if reward > 0 else "negative" if reward < 0 else "neutral",
+        })
+
         # Check max attempts
         if not ts.done and ts.step_count >= ts.max_attempts:
             ts.done = True
@@ -743,11 +847,12 @@ class SREIncidentEnvironment(Environment[SREAction, SREObservation, SREState]):
             step_count=ts.step_count,
             task_id=ts.task_id,
             difficulty=ts.difficulty,
-            current_score=_normalised_score(ts.difficulty, ts.cumulative_reward),
+            current_score=_normalised_score(ts.difficulty, ts.cumulative_reward, ts.step_count, ts.max_attempts),
             total_downtime_minutes=ts.downtime_minutes,
             total_cost_usd=ts.cloud_cost,
             actions_taken=list(ts.actions_taken),
             completed=ts.done,
+            timeline=list(ts.timeline),
         )
 
     # ==================================================================
@@ -905,6 +1010,14 @@ class SREIncidentEnvironment(Environment[SREAction, SREObservation, SREState]):
                         "Root cause identified: NullPointerException in v2.1.0 "
                         "PaymentHandler."
                     )
+                elif svc != "api-gateway" and f"_medium_queried_{svc}" not in ts.actions_taken:
+                    ts.actions_taken.append(f"_medium_queried_{svc}")
+                    reward = 0.05
+                    feedback = (
+                        f"Logs for {svc}:\n{ts.logs[svc]}\n\n"
+                        f"Good diagnostic instinct checking {svc}, but the root cause "
+                        "is in api-gateway logs."
+                    )
                 else:
                     feedback = f"Logs for {svc}:\n{ts.logs[svc]}\n(Already reviewed)"
             else:
@@ -1023,6 +1136,10 @@ class SREIncidentEnvironment(Environment[SREAction, SREObservation, SREState]):
         feedback = ""
         hint = ""
 
+        # Resolve randomized PIDs for this episode
+        correct_pid = ts._random_pid_map.get("4287", "4287")
+        victim_pid = ts._random_pid_map.get("4290", "4290")
+
         # Ongoing degradation until lock is killed
         if not ts.killed_query:
             ts.metrics["error_rate_percent"] = min(
@@ -1080,10 +1197,10 @@ class SREIncidentEnvironment(Environment[SREAction, SREObservation, SREState]):
                     reward = 0.1
                     feedback = (
                         f"Logs for {svc}:\n{ts.logs[svc]}\n\n"
-                        "ROOT CAUSE FOUND: PID 4287 is holding an exclusive "
+                        f"ROOT CAUSE FOUND: PID {correct_pid} is holding an exclusive "
                         "lock for 45 minutes, blocking 47 other queries. "
                         "Kill this query to release the lock. "
-                        "NOTE: PID 4290 and 4295 are victims (WAITING), not blockers."
+                        f"NOTE: PID {victim_pid} and others are victims (WAITING), not blockers."
                     )
                 elif svc == "cache-layer" and not ts.queried_cache_logs:
                     ts.queried_cache_logs = True
@@ -1103,7 +1220,7 @@ class SREIncidentEnvironment(Environment[SREAction, SREObservation, SREState]):
         elif at == "kill_query":
             if ts.killed_query:
                 feedback = "Lock already killed. Focus on stabilising the system."
-            elif action.query_id == "4287":
+            elif action.query_id == correct_pid:
                 ts.killed_query = True
                 reward = 0.4
                 # Update system state post-kill
@@ -1135,22 +1252,22 @@ class SREIncidentEnvironment(Environment[SREAction, SREObservation, SREState]):
                     }
                 )
                 feedback = (
-                    "Killed PID 4287 — database lock released! "
+                    f"Killed PID {correct_pid} — database lock released! "
                     "Connections dropped to 60/200. Workers recovering but "
                     "there's a backlog of 600 messages. Scale worker-node to "
                     "clear it."
                 )
-            elif action.query_id == "4290":
+            elif action.query_id == victim_pid:
                 reward = -0.05
                 feedback = (
-                    "PID 4290 is a waiting query, not the lock holder. "
-                    "The blocking lock is held by PID 4287."
+                    f"PID {victim_pid} is a waiting query, not the lock holder. "
+                    f"The blocking lock is held by PID {correct_pid}."
                 )
             else:
                 reward = -0.05
                 feedback = (
                     f"PID '{action.query_id}' not found. Check the database "
-                    "logs — the blocking PID is 4287."
+                    f"logs — the blocking PID is {correct_pid}."
                 )
 
         elif at == "scale_service":
@@ -1158,7 +1275,7 @@ class SREIncidentEnvironment(Environment[SREAction, SREObservation, SREState]):
                 reward = -0.1
                 feedback = (
                     "Scaling won't help — new workers will also get stuck "
-                    "on the database lock. Kill the blocking query (PID 4287) "
+                    f"on the database lock. Kill the blocking query (PID {correct_pid}) "
                     "first."
                 )
             elif action.service_name != "worker-node":
@@ -1258,7 +1375,7 @@ class SREIncidentEnvironment(Environment[SREAction, SREObservation, SREState]):
         ):
             hint = "Hint: Workers are stuck on DB queries. Check database logs for locks."
         elif ts.queried_db_logs and not ts.killed_query and ts.step_count >= 8:
-            hint = "Hint: PID 4287 is the blocking query. Use kill_query(query_id='4287')."
+            hint = f"Hint: PID {correct_pid} is the blocking query. Use kill_query(query_id='{correct_pid}')."
 
         return reward, feedback, hint
 
@@ -1600,25 +1717,19 @@ class SREIncidentEnvironment(Environment[SREAction, SREObservation, SREState]):
                 )
 
         elif at == "rollback_deployment":
-            # Red herring — rolling back v5.0.0 won't fix the cert
-            if action.service_name == "api-gateway" and action.version in ("v4.9.0", "v4.8.0"):
-                if ts.rolled_back_deploy_ce:
-                    feedback = "Already rolled back. The issue persists — this was not the cause."
-                else:
-                    ts.rolled_back_deploy_ce = True
-                    reward = -0.15
-                    ts.services["api-gateway"]["version"] = action.version
-                    feedback = (
-                        f"Rolled back api-gateway to {action.version}. "
-                        "TLS errors PERSIST — the v5.0.0 deploy was not the cause. "
-                        "The issue is an expired mTLS certificate, not a code change. "
-                        "Check service-mesh-proxy logs."
-                    )
+            # Red herring — rolling back any service won't fix the cert
+            if ts.rolled_back_deploy_ce:
+                feedback = "Already rolled back. The issue persists — this was not the cause."
             else:
-                reward = -0.1
+                ts.rolled_back_deploy_ce = True
+                reward = -0.15
+                if action.service_name in ts.services:
+                    ts.services[action.service_name]["version"] = action.version
                 feedback = (
-                    "Rollback won't fix this. The TLS errors are caused by an expired "
-                    "certificate, not a bad deployment. Investigate service-mesh-proxy."
+                    f"Rolled back {action.service_name} to {action.version}. "
+                    "TLS errors PERSIST — the deploy was not the cause. "
+                    "The issue is an expired mTLS certificate, not a code change. "
+                    "Check service-mesh-proxy logs."
                 )
 
         elif at == "scale_service":
@@ -1714,7 +1825,7 @@ class SREIncidentEnvironment(Environment[SREAction, SREObservation, SREState]):
             attempt_number=ts.step_count,
             max_attempts=ts.max_attempts,
             metadata={
-                "score": _normalised_score(ts.difficulty, ts.cumulative_reward),
+                "score": _normalised_score(ts.difficulty, ts.cumulative_reward, ts.step_count, ts.max_attempts),
                 "cumulative_reward": round(ts.cumulative_reward, 4),
             },
         )

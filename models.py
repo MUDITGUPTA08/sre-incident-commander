@@ -52,3 +52,4 @@ class SREState(State):
     total_cost_usd: float = 0.0
     actions_taken: List[str] = Field(default_factory=list)
     completed: bool = False
+    timeline: List[Dict[str, Any]] = Field(default_factory=list)

@@ -14,7 +14,7 @@ USER appuser
 
 ENV PORT=7860 \
     HOST=0.0.0.0 \
-    WORKERS=4 \
+    WORKERS=1 \
     MAX_CONCURRENT_ENVS=100 \
     PYTHONPATH=/app
 

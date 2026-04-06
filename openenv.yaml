@@ -32,6 +32,17 @@ tasks:
     description: "Expired mTLS certificate causing 95% TLS failures across all services. Navigate red herrings (recent deploy, CPU spike), trace to service-mesh-proxy, rotate certs, and restart all affected services."
     difficulty: expert
 
+reset_params:
+  task_id:
+    type: "str"
+    description: "Task to run: easy, medium, hard, memory_leak, cert_expiry"
+  noise_level:
+    type: "float"
+    description: "Surface randomization intensity 0.0-1.0 (default 0.3). Varies PIDs, metrics, request IDs to prevent memorisation. 0.0 = deterministic."
+  seed:
+    type: "int"
+    description: "Random seed for reproducible episodes"
+
 observation_space:
   active_alerts: "List of active alert dicts with severity, service, message"
   system_metrics: "CPU, memory, queue depth, error rate, latency, DB connections"
@@ -69,6 +80,6 @@ action_space:
 
 reward:
   type: continuous
-  range: [-0.50, 0.60]
+  range: [-0.50, 0.60]  # per-step; cumulative is normalized to 0.0-1.0
   per_step: true
   episode_score: "Normalized to 0.0-1.0 via cumulative_reward / max_possible_reward"

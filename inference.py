@@ -22,7 +22,7 @@ from models import SREAction, SREObservation
 
 API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
 MODEL_NAME = os.getenv("MODEL_NAME", "meta-llama/Llama-3.3-70B-Instruct")
-HF_TOKEN = os.getenv("HF_TOKEN") or os.getenv("API_KEY", "")
+HF_TOKEN = os.getenv("HF_TOKEN") or os.getenv("OPENAI_API_KEY") or os.getenv("API_KEY", "")
 LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME", "")
 
 # Environment server URL (where the OpenEnv server is running)
@@ -346,6 +346,29 @@ async def run_task(
     }
 
 
+def print_summary(results: List[Dict[str, Any]]) -> None:
+    """Print a formatted evaluation summary table."""
+    print("\n" + "=" * 65, flush=True)
+    print("  SRE INCIDENT COMMANDER — EVALUATION SUMMARY", flush=True)
+    print("=" * 65, flush=True)
+    print(f"  {'Task':<15} {'Steps':>6} {'Score':>8} {'Success':>9}", flush=True)
+    print("-" * 65, flush=True)
+    for r in results:
+        status = "PASS" if r["success"] else "FAIL"
+        print(
+            f"  {r['task_id']:<15} {r['steps']:>6} {r['score']:>8.3f} {status:>9}",
+            flush=True,
+        )
+    print("-" * 65, flush=True)
+    avg_score = sum(r["score"] for r in results) / len(results) if results else 0.0
+    total_pass = sum(1 for r in results if r["success"])
+    print(
+        f"  {'AVERAGE':<15} {'':>6} {avg_score:>8.3f} {total_pass}/{len(results):>7}",
+        flush=True,
+    )
+    print("=" * 65, flush=True)
+
+
 async def main():
     llm = OpenAI(
         base_url=API_BASE_URL,
@@ -357,6 +380,8 @@ async def main():
     for task_id in TASKS:
         result = await run_task(task_id, llm, model, ENV_URL)
         results.append(result)
+
+    print_summary(results)
 
 
 if __name__ == "__main__":
