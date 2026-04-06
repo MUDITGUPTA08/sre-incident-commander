@@ -122,6 +122,7 @@ def root():
   .diff-medium-hard{background:#db611322;color:#db6113;border:1px solid #db611355}
   .diff-hard{background:#f8514922;color:#f85149;border:1px solid #f8514955}
   .diff-expert{background:#a371f722;color:#a371f7;border:1px solid #a371f755}
+  .diff-nightmare{background:#f4212222;color:#ff6b6b;border:1px solid #f4212255;text-transform:uppercase;letter-spacing:0.05em}
   .task-card .card-desc{font-size:.88rem;color:#8b949e;margin-bottom:12px}
   .task-card .card-meta{font-size:.78rem;color:#6e7681}
   .task-card .optimal{
@@ -195,7 +196,7 @@ def root():
   </p>
   <div class="badges">
     <span class="badge">OpenEnv Compatible</span>
-    <span class="badge">5 Tasks</span>
+    <span class="badge">6 Tasks</span>
     <span class="badge">7 Actions</span>
     <span class="badge">Shaped Rewards</span>
     <span class="badge">No External Dependencies</span>
@@ -355,7 +356,95 @@ def root():
         </div>
       </div>
 
+      <div class="task-card">
+        <div class="card-head">
+          <span class="card-title">The Perfect Storm</span>
+          <span class="diff-badge diff-nightmare">nightmare</span>
+        </div>
+        <div class="card-desc">
+          Two simultaneous incidents: bad deployment causing 500 errors
+          AND database connection leak. Agent must triage correctly &mdash;
+          fix customer-facing errors first, then resolve the DB leak.
+        </div>
+        <div class="card-meta">Max attempts: 20</div>
+        <div class="optimal">
+          <strong>Optimal path (6 steps):</strong>
+          <ol>
+            <li><code>query_logs</code> api-gateway &rarr; see NPE + DB warnings</li>
+            <li><code>query_logs</code> database &rarr; find leaking connections</li>
+            <li><code>rollback_deployment</code> api-gateway to v5.9.2</li>
+            <li><code>kill_query</code> leaking PID</li>
+            <li><code>scale_service</code> worker-node to clear backlog</li>
+            <li><code>resolve_incident</code></li>
+          </ol>
+        </div>
+      </div>
+
     </div>
+  </div>
+
+  <!-- DIFFICULTY PROGRESSION CHART -->
+  <div class="section">
+    <div class="section-title">Difficulty Progression</div>
+    <p class="section-subtitle">Llama 3.3 70B scores across tasks &mdash; harder tasks produce lower, more varied scores</p>
+    <div style="margin-top:20px;display:flex;flex-direction:column;gap:12px">
+
+      <div style="display:flex;align-items:center;gap:12px">
+        <span class="mono" style="width:130px;text-align:right;color:#8b949e;font-size:.85rem">easy</span>
+        <div style="flex:1;background:#161b22;border-radius:6px;height:28px;border:1px solid #21262d;overflow:hidden">
+          <div style="width:100%;height:100%;background:linear-gradient(90deg,#238636,#2ea043);border-radius:5px;display:flex;align-items:center;padding-left:10px">
+            <span class="mono" style="font-size:.75rem;color:#fff;font-weight:600">1.00</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:12px">
+        <span class="mono" style="width:130px;text-align:right;color:#8b949e;font-size:.85rem">medium</span>
+        <div style="flex:1;background:#161b22;border-radius:6px;height:28px;border:1px solid #21262d;overflow:hidden">
+          <div style="width:100%;height:100%;background:linear-gradient(90deg,#238636,#2ea043);border-radius:5px;display:flex;align-items:center;padding-left:10px">
+            <span class="mono" style="font-size:.75rem;color:#fff;font-weight:600">1.00</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:12px">
+        <span class="mono" style="width:130px;text-align:right;color:#8b949e;font-size:.85rem">medium-hard</span>
+        <div style="flex:1;background:#161b22;border-radius:6px;height:28px;border:1px solid #21262d;overflow:hidden">
+          <div style="width:97%;height:100%;background:linear-gradient(90deg,#2ea043,#d29922);border-radius:5px;display:flex;align-items:center;padding-left:10px">
+            <span class="mono" style="font-size:.75rem;color:#fff;font-weight:600">0.97</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:12px">
+        <span class="mono" style="width:130px;text-align:right;color:#8b949e;font-size:.85rem">hard</span>
+        <div style="flex:1;background:#161b22;border-radius:6px;height:28px;border:1px solid #21262d;overflow:hidden">
+          <div style="width:97%;height:100%;background:linear-gradient(90deg,#d29922,#db6d28);border-radius:5px;display:flex;align-items:center;padding-left:10px">
+            <span class="mono" style="font-size:.75rem;color:#fff;font-weight:600">0.97</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:12px">
+        <span class="mono" style="width:130px;text-align:right;color:#8b949e;font-size:.85rem">expert</span>
+        <div style="flex:1;background:#161b22;border-radius:6px;height:28px;border:1px solid #21262d;overflow:hidden">
+          <div style="width:53%;height:100%;background:linear-gradient(90deg,#db6d28,#f85149);border-radius:5px;display:flex;align-items:center;padding-left:10px">
+            <span class="mono" style="font-size:.75rem;color:#fff;font-weight:600">0.53*</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:12px">
+        <span class="mono" style="width:130px;text-align:right;color:#8b949e;font-size:.85rem">nightmare</span>
+        <div style="flex:1;background:#161b22;border-radius:6px;height:28px;border:1px solid #21262d;overflow:hidden">
+          <div style="width:82%;height:100%;background:linear-gradient(90deg,#f85149,#da3633);border-radius:5px;display:flex;align-items:center;padding-left:10px">
+            <span class="mono" style="font-size:.75rem;color:#fff;font-weight:600">0.82</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <p style="margin-top:12px;font-size:.8rem;color:#484f58">* Expert score impacted by API rate limit mid-episode. Expected ~0.89 under normal conditions. Scores vary by run due to surface randomization.</p>
   </div>
 
   <!-- ACTION SPACE -->
