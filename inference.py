@@ -109,7 +109,7 @@ def log_step(step: int, action: str, reward: float, done: bool, error: Optional[
 def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> None:
     rewards_str = ",".join(f"{r:.2f}" for r in rewards)
     print(
-        f"[END] success={str(success).lower()} steps={steps} score={score:.2f} rewards={rewards_str}",
+        f"[END] success={str(success).lower()} steps={steps} score={score:.3f} rewards={rewards_str}",
         flush=True,
     )
 
@@ -244,6 +244,8 @@ async def run_task(
     steps = 0
     score = 0.0
     success = False
+    timeline: List[Dict[str, Any]] = []
+    env = None
 
     try:
         if LOCAL_IMAGE_NAME:
@@ -331,14 +333,13 @@ async def run_task(
                 timeline = st.timeline
             except Exception:
                 score = 0.0
-                timeline = []
             success = score >= 0.5
 
     except Exception as e:
         print(f"[DEBUG] Task {task_id} error: {e}", file=sys.stderr, flush=True)
-        timeline = []
 
-    log_end(success=success, steps=steps, score=score, rewards=rewards)
+    finally:
+        log_end(success=success, steps=steps, score=score, rewards=rewards)
 
     return {
         "task_id": task_id,
