@@ -600,22 +600,6 @@ POST /reset     POST /step      WS   /ws</pre>
     </div>
   </div>
 
-  <!-- TEAM -->
-  <div class="section">
-    <div class="section-title">Team HackThem</div>
-    <div style="display:flex;gap:24px;flex-wrap:wrap;margin-top:12px">
-      <div style="background:#161b22;border:1px solid #30363d;border-radius:10px;padding:20px 28px;text-align:center">
-        <div style="font-weight:700;color:#f0f6fc;font-size:1.1rem">Mudit Gupta</div>
-        <div style="font-size:.8rem;color:#8b949e;margin-top:4px">Team Lead</div>
-        <a href="https://github.com/MUDITGUPTA08" target="_blank" rel="noopener" style="font-size:.75rem">GitHub</a>
-      </div>
-      <div style="background:#161b22;border:1px solid #30363d;border-radius:10px;padding:20px 28px;text-align:center">
-        <div style="font-weight:700;color:#f0f6fc;font-size:1.1rem">Vinit Jain</div>
-        <div style="font-size:.8rem;color:#8b949e;margin-top:4px">Team Member</div>
-      </div>
-    </div>
-  </div>
-
   <!-- FOOTER -->
   <div class="footer">
     <p>
