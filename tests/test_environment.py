@@ -44,7 +44,7 @@ def test_easy_optimal():
     obs = env.step(SREAction(action_type="query_logs", service_name="api-gateway"))
     assert obs.done or env.state.completed
     score = env.state.current_score
-    assert score == 1.0, f"Easy optimal score should be 1.0, got {score}"
+    assert score == 0.99, f"Easy optimal score should be 1.0, got {score}"
 
 
 def test_easy_wrong_action_penalizes():
@@ -71,7 +71,7 @@ def test_medium_optimal():
     obs = env.step(SREAction(action_type="rollback_deployment", service_name="api-gateway", version="v2.0.9"))
     assert obs.done
     score = env.state.current_score
-    assert score == 1.0, f"Medium optimal score should be 1.0, got {score}"
+    assert score == 0.99, f"Medium optimal score should be 1.0, got {score}"
 
 
 def test_medium_scaling_trap():
@@ -115,7 +115,7 @@ def test_hard_optimal():
     obs = env.step(SREAction(action_type="scale_service", service_name="worker-node", replicas=6))
     assert obs.done
     score = env.state.current_score
-    assert score == 1.0, f"Hard optimal score should be 1.0, got {score}"
+    assert score == 0.99, f"Hard optimal score should be 1.0, got {score}"
 
 
 def test_hard_wrong_pid_penalizes():
@@ -154,7 +154,7 @@ def test_memory_leak_optimal():
     assert obs.done
     assert obs.reward == 0.5
     score = env.state.current_score
-    assert score == 1.0, f"Memory leak optimal score should be 1.0, got {score}"
+    assert score == 0.99, f"Memory leak optimal score should be 1.0, got {score}"
 
 
 def test_memory_leak_scaling_trap():
@@ -221,7 +221,7 @@ def test_reset_clears_state():
     obs = env.reset(task_id="medium", noise_level=0.0)
     assert obs.task_id == "medium"
     assert obs.attempt_number == 0
-    assert env.state.current_score == 0.0
+    assert env.state.current_score == 0.01
 
 
 def test_all_tasks_reset():
@@ -452,7 +452,7 @@ def test_state_fields(task_id):
     state = env.state
     assert state.task_id == task_id
     assert state.step_count == 0
-    assert state.current_score == 0.0
+    assert state.current_score == 0.01
     assert state.completed is False
     assert state.actions_taken == []
 

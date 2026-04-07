@@ -892,6 +892,11 @@ def _normalised_score(
     if base > 0.0 and step_count > 0 and max_attempts > 0:
         efficiency = 1.0 - (step_count / max_attempts)
         base = min(1.0, base + efficiency * 0.1)
+    # Clamp to strict (0, 1) — validator requires scores strictly between 0 and 1
+    if base <= 0.0:
+        base = 0.01
+    if base >= 1.0:
+        base = 0.99
     return round(base, 4)
 
 
