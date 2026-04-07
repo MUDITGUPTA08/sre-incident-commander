@@ -76,19 +76,19 @@ Episode scores are normalized to `[0.0, 1.0]` by dividing cumulative reward by t
 
 | Task | Steps | Score |
 |------|-------|-------|
-| Easy | 3 | 1.000 |
-| Medium | 2 | 1.000 |
-| Memory Leak | 3 | 1.000 |
-| Hard | 5 | 1.000 |
-| Cert Expiry | 7 | 1.000 |
-| Perfect Storm | 6 | 1.000 |
+| Easy | 3 | 0.99 |
+| Medium | 2 | 0.99 |
+| Memory Leak | 3 | 0.99 |
+| Hard | 5 | 0.99 |
+| Cert Expiry | 7 | 0.97 |
+| Perfect Storm | 6 | 0.99 |
 
 **LLM baseline** (`meta-llama/Llama-3.3-70B-Instruct` via HuggingFace Inference API):
 
 | Task | Steps | Score |
 |------|-------|-------|
-| Easy | 4 | 1.00 |
-| Medium | 2 | 1.00 |
+| Easy | 4 | 0.99 |
+| Medium | 2 | 0.99 |
 | Hard | 4 | 0.97 |
 | Memory Leak | 2 | 0.97 |
 | Cert Expiry | 5 | 0.97 |

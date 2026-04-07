@@ -396,8 +396,8 @@ def root():
       <div style="display:flex;align-items:center;gap:12px">
         <span class="mono" style="width:130px;text-align:right;color:#8b949e;font-size:.85rem">easy</span>
         <div style="flex:1;background:#161b22;border-radius:6px;height:28px;border:1px solid #21262d;overflow:hidden">
-          <div style="width:100%;height:100%;background:linear-gradient(90deg,#238636,#2ea043);border-radius:5px;display:flex;align-items:center;padding-left:10px">
-            <span class="mono" style="font-size:.75rem;color:#fff;font-weight:600">1.00</span>
+          <div style="width:99%;height:100%;background:linear-gradient(90deg,#238636,#2ea043);border-radius:5px;display:flex;align-items:center;padding-left:10px">
+            <span class="mono" style="font-size:.75rem;color:#fff;font-weight:600">0.99</span>
           </div>
         </div>
       </div>
@@ -405,8 +405,8 @@ def root():
       <div style="display:flex;align-items:center;gap:12px">
         <span class="mono" style="width:130px;text-align:right;color:#8b949e;font-size:.85rem">medium</span>
         <div style="flex:1;background:#161b22;border-radius:6px;height:28px;border:1px solid #21262d;overflow:hidden">
-          <div style="width:100%;height:100%;background:linear-gradient(90deg,#238636,#2ea043);border-radius:5px;display:flex;align-items:center;padding-left:10px">
-            <span class="mono" style="font-size:.75rem;color:#fff;font-weight:600">1.00</span>
+          <div style="width:99%;height:100%;background:linear-gradient(90deg,#238636,#2ea043);border-radius:5px;display:flex;align-items:center;padding-left:10px">
+            <span class="mono" style="font-size:.75rem;color:#fff;font-weight:600">0.99</span>
           </div>
         </div>
       </div>
@@ -462,12 +462,12 @@ def root():
       <tbody>
         <tr>
           <td><code>easy</code></td><td><span class="diff-badge diff-easy">easy</span></td>
-          <td>4</td><td style="color:#2ea043;font-weight:700">1.000</td>
+          <td>4</td><td style="color:#2ea043;font-weight:700">0.990</td>
           <td>Scaled workers progressively, queue auto-resolved</td>
         </tr>
         <tr>
           <td><code>medium</code></td><td><span class="diff-badge diff-medium">medium</span></td>
-          <td>2</td><td style="color:#2ea043;font-weight:700">1.000</td>
+          <td>2</td><td style="color:#2ea043;font-weight:700">0.990</td>
           <td>Perfect play &mdash; queried logs, rolled back v2.0.9</td>
         </tr>
         <tr>

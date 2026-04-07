@@ -75,11 +75,11 @@ An AI agent acts as Incident Commander diagnosing and resolving production infra
 
 | Task | Optimal Steps | Score | Sequence |
 |------|---------------|-------|----------|
-| Easy | 3 | 1.000 | scale(5) → wait → auto-resolve |
-| Medium | 2 | 1.000 | query_logs → rollback(v2.0.9) |
-| Hard | 5 | 1.000 | query×3 → kill(4287) → scale(5) |
-| Memory Leak | 3 | 1.000 | query_logs(payment) → restart → rollback(v4.0.2) |
-| Cert Expiry | 7 | 1.000 | query×2 → query(mesh) → rotate_certs → restart×3 |
+| Easy | 3 | 0.99 | scale(5) → wait → auto-resolve |
+| Medium | 2 | 0.99 | query_logs → rollback(v2.0.9) |
+| Hard | 5 | 0.99 | query×3 → kill(4287) → scale(5) |
+| Memory Leak | 3 | 0.99 | query_logs(payment) → restart → rollback(v4.0.2) |
+| Cert Expiry | 7 | 0.99 | query×2 → query(mesh) → rotate_certs → restart×3 |
 
 ---
 

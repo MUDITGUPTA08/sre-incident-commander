@@ -11,8 +11,8 @@
 
 | Task | Difficulty | Steps | Score | Result |
 |------|-----------|-------|-------|--------|
-| easy | Easy | 4 | **1.000** | PASS |
-| medium | Medium | 2 | **1.000** | PASS |
+| easy | Easy | 4 | **0.990** | PASS |
+| medium | Medium | 2 | **0.990** | PASS |
 | hard | Hard | 4 | **0.973** | PASS |
 | memory_leak | Medium-Hard | 2 | **0.972** | PASS |
 | cert_expiry | Expert | 5 | **0.970** | PASS |
@@ -70,10 +70,10 @@
 
 ## Trajectory Analysis
 
-### Easy — The Traffic Spike (score: 1.000)
+### Easy — The Traffic Spike (score: 0.990)
 Queried logs first, then scaled progressively (4 → 6 → 8 replicas). Queue drained and auto-resolved. Perfect score with efficiency bonus.
 
-### Medium — The Poison Pill (score: 1.000)
+### Medium — The Poison Pill (score: 0.990)
 **Perfect play.** Queried api-gateway logs, identified the NullPointerException in v2.1.0, rolled back to v2.0.9. Exactly the optimal 2-step path.
 
 ### Hard — The Cascading Lock (score: 0.973)
