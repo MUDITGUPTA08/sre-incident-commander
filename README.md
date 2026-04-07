@@ -91,10 +91,10 @@ Episode scores are normalized to `[0.0, 1.0]` by dividing cumulative reward by t
 | Medium | 2 | 1.00 |
 | Hard | 4 | 0.97 |
 | Memory Leak | 2 | 0.97 |
-| Cert Expiry | 9 | 0.53* |
-| Perfect Storm | 7 | 0.82 |
+| Cert Expiry | 5 | 0.97 |
+| Perfect Storm | 5 | 0.95 |
 
-*Scores vary by run due to surface randomization. \*Cert Expiry score impacted by API rate limit mid-run; expected ~0.89 normally.*
+*Scores vary by run due to surface randomization. Tested with Llama 3.3 70B via Groq. Average score: 0.978 across all 6 tasks.*
 
 ## Environment Variables
 

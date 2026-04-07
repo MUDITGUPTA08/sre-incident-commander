@@ -428,8 +428,8 @@ def root():
       <div style="display:flex;align-items:center;gap:12px">
         <span class="mono" style="width:130px;text-align:right;color:#8b949e;font-size:.85rem">expert</span>
         <div style="flex:1;background:#161b22;border-radius:6px;height:28px;border:1px solid #21262d;overflow:hidden">
-          <div style="width:53%;height:100%;background:linear-gradient(90deg,#db6d28,#f85149);border-radius:5px;display:flex;align-items:center;padding-left:10px">
-            <span class="mono" style="font-size:.75rem;color:#fff;font-weight:600">0.53*</span>
+          <div style="width:97%;height:100%;background:linear-gradient(90deg,#db6d28,#f85149);border-radius:5px;display:flex;align-items:center;padding-left:10px">
+            <span class="mono" style="font-size:.75rem;color:#fff;font-weight:600">0.97</span>
           </div>
         </div>
       </div>
@@ -437,14 +437,14 @@ def root():
       <div style="display:flex;align-items:center;gap:12px">
         <span class="mono" style="width:130px;text-align:right;color:#8b949e;font-size:.85rem">nightmare</span>
         <div style="flex:1;background:#161b22;border-radius:6px;height:28px;border:1px solid #21262d;overflow:hidden">
-          <div style="width:82%;height:100%;background:linear-gradient(90deg,#f85149,#da3633);border-radius:5px;display:flex;align-items:center;padding-left:10px">
-            <span class="mono" style="font-size:.75rem;color:#fff;font-weight:600">0.82</span>
+          <div style="width:95%;height:100%;background:linear-gradient(90deg,#f85149,#da3633);border-radius:5px;display:flex;align-items:center;padding-left:10px">
+            <span class="mono" style="font-size:.75rem;color:#fff;font-weight:600">0.95</span>
           </div>
         </div>
       </div>
 
     </div>
-    <p style="margin-top:12px;font-size:.8rem;color:#484f58">* Expert score impacted by API rate limit mid-episode. Expected ~0.89 under normal conditions. Scores vary by run due to surface randomization.</p>
+    <p style="margin-top:12px;font-size:.8rem;color:#484f58">Tested with Llama 3.3 70B via Groq API. Scores vary by run due to surface randomization. Average: 0.978 across all 6 tasks.</p>
   </div>
 
   <!-- ACTION SPACE -->
