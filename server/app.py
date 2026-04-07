@@ -85,6 +85,10 @@ def root():
     transition:border-color .2s;
   }
   .topo-node:hover{border-color:#58a6ff}
+  @keyframes pulse-red{0%,100%{box-shadow:0 0 0 0 rgba(248,81,73,0.4)}50%{box-shadow:0 0 12px 4px rgba(248,81,73,0.15)}}
+  @keyframes pulse-green{0%,100%{box-shadow:0 0 0 0 rgba(46,160,67,0.4)}50%{box-shadow:0 0 12px 4px rgba(46,160,67,0.15)}}
+  .topo-node.status-critical{border-color:#f85149;animation:pulse-red 2s ease-in-out infinite}
+  .topo-node.status-healthy{border-color:#2ea043;animation:pulse-green 3s ease-in-out infinite}
   .topo-node .name{font-weight:700;font-size:.85rem;color:#f0f6fc}
   .topo-node .role{font-size:.7rem;color:#8b949e;margin-top:2px}
   .topo-arrow{
@@ -213,31 +217,31 @@ def root():
       <div class="topo-mesh-wrap">
         <span class="topo-mesh-label">service-mesh-proxy (envoy sidecar &middot; mTLS)</span>
         <div class="topo-grid">
-          <div class="topo-node">
+          <div class="topo-node status-healthy">
             <div class="name">load-balancer</div>
             <div class="role">L7 ingress</div>
           </div>
           <div class="topo-arrow">&rarr;</div>
-          <div class="topo-node">
+          <div class="topo-node status-critical">
             <div class="name">api-gateway</div>
             <div class="role">routing + auth</div>
           </div>
           <div class="topo-arrow">&rarr;</div>
-          <div class="topo-node">
+          <div class="topo-node status-critical">
             <div class="name">worker-node</div>
             <div class="role">queue consumer</div>
           </div>
           <div class="topo-arrow">&rarr;</div>
-          <div class="topo-node">
+          <div class="topo-node status-critical">
             <div class="name">database</div>
             <div class="role">PostgreSQL</div>
           </div>
           <div class="topo-side">
-            <div class="topo-node">
+            <div class="topo-node status-critical">
               <div class="name">payment-service</div>
               <div class="role">checkout + billing</div>
             </div>
-            <div class="topo-node">
+            <div class="topo-node status-healthy">
               <div class="name">cache-layer</div>
               <div class="role">Redis</div>
             </div>
@@ -447,6 +451,50 @@ def root():
     <p style="margin-top:12px;font-size:.8rem;color:#484f58">Tested with Llama 3.3 70B via Groq API. Scores vary by run due to surface randomization. Average: 0.978 across all 6 tasks.</p>
   </div>
 
+  <!-- LLM BASELINE RESULTS -->
+  <div class="section">
+    <div class="section-title">LLM Baseline Results</div>
+    <p class="section-subtitle">Llama 3.3 70B (via Groq) &mdash; all 6 tasks, average score <strong style="color:#2ea043">0.978</strong></p>
+    <table class="action-table" style="margin-top:16px">
+      <thead>
+        <tr><th>Task</th><th>Difficulty</th><th>Steps</th><th>Score</th><th>Highlights</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>easy</code></td><td><span class="diff-badge diff-easy">easy</span></td>
+          <td>4</td><td style="color:#2ea043;font-weight:700">1.000</td>
+          <td>Scaled workers progressively, queue auto-resolved</td>
+        </tr>
+        <tr>
+          <td><code>medium</code></td><td><span class="diff-badge diff-medium">medium</span></td>
+          <td>2</td><td style="color:#2ea043;font-weight:700">1.000</td>
+          <td>Perfect play &mdash; queried logs, rolled back v2.0.9</td>
+        </tr>
+        <tr>
+          <td><code>hard</code></td><td><span class="diff-badge diff-hard">hard</span></td>
+          <td>4</td><td style="color:#2ea043;font-weight:700">0.973</td>
+          <td>Found randomised PID 9526 from logs, killed lock</td>
+        </tr>
+        <tr>
+          <td><code>memory_leak</code></td><td><span class="diff-badge diff-medium-hard">medium-hard</span></td>
+          <td>2</td><td style="color:#2ea043;font-weight:700">0.972</td>
+          <td>Diagnosed heap dump, rolled back to v4.0.2</td>
+        </tr>
+        <tr>
+          <td><code>cert_expiry</code></td><td><span class="diff-badge diff-expert">expert</span></td>
+          <td>5</td><td style="color:#2ea043;font-weight:700">0.970</td>
+          <td>Skipped red herrings, straight to mesh-proxy</td>
+        </tr>
+        <tr>
+          <td><code>perfect_storm</code></td><td><span class="diff-badge diff-nightmare">nightmare</span></td>
+          <td>5</td><td style="color:#d29922;font-weight:700">0.950</td>
+          <td>Correct triage: rollback &rarr; kill leak &rarr; scale</td>
+        </tr>
+      </tbody>
+    </table>
+    <p style="margin-top:10px;font-size:.8rem;color:#484f58">Zero negative rewards &mdash; LLM avoided all trap actions. Randomised PIDs confirmed working (9526, 4014).</p>
+  </div>
+
   <!-- ACTION SPACE -->
   <div class="section">
     <div class="section-title">Action Space</div>
@@ -522,32 +570,49 @@ def root():
     </div>
   </div>
 
-  <!-- TRY IT -->
+  <!-- TRY IT LIVE -->
   <div class="section">
-    <div class="section-title">Try It</div>
-    <p class="section-subtitle">Quick start with curl &mdash; or point your OpenEnv-compatible agent at this server</p>
+    <div class="section-title">Try It Live</div>
+    <p class="section-subtitle">Click to run a real episode against this environment &mdash; or use curl</p>
     <div class="try-block">
-      <div class="try-label">Reset environment (start a new episode):</div>
-      <pre>curl -X POST /reset \\
-  -H "Content-Type: application/json" \\
-  -d '{"task_id": "easy"}'</pre>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">
+        <select id="task-select" style="background:#0d1117;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:8px 12px;font-family:inherit;font-size:.85rem">
+          <option value="easy">easy &mdash; The Traffic Spike</option>
+          <option value="medium">medium &mdash; The Poison Pill</option>
+          <option value="memory_leak">memory_leak &mdash; The Silent OOM</option>
+          <option value="hard">hard &mdash; The Cascading Lock</option>
+          <option value="cert_expiry">cert_expiry &mdash; The Midnight Expiry</option>
+          <option value="perfect_storm">perfect_storm &mdash; The Perfect Storm</option>
+        </select>
+        <button id="try-btn" onclick="tryReset()" style="background:#238636;color:#fff;border:none;border-radius:6px;padding:8px 20px;font-weight:600;font-size:.85rem;cursor:pointer;transition:background .2s">
+          Reset Episode
+        </button>
+      </div>
+      <pre id="try-output" style="max-height:300px;overflow-y:auto;font-size:.78rem;color:#8b949e">Click "Reset Episode" to see the initial observation...</pre>
 
-      <div class="try-label">Take an action:</div>
-      <pre>curl -X POST /step \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "action_type": "scale_service",
-    "service_name": "worker-node",
-    "replicas": 5,
-    "reasoning": "Queue growing at 200/min, need 5x100=500 msg/min drain rate"
-  }'</pre>
+      <div class="try-label" style="margin-top:20px">Or use curl:</div>
+      <pre>curl -X POST /reset -H "Content-Type: application/json" -d '{"task_id": "easy"}'
+curl -X POST /step  -H "Content-Type: application/json" -d '{"action_type": "scale_service", "service_name": "worker-node", "replicas": 5}'</pre>
 
-      <div class="try-label">Other endpoints:</div>
-      <pre>GET  /health    # health check
-GET  /tasks     # list all task configs
-GET  /state     # current environment state
-POST /reset     # start new episode
-POST /step      # take an action</pre>
+      <div class="try-label">Endpoints:</div>
+      <pre>GET  /health    GET  /tasks     GET  /state
+POST /reset     POST /step      WS   /ws</pre>
+    </div>
+  </div>
+
+  <!-- TEAM -->
+  <div class="section">
+    <div class="section-title">Team HackThem</div>
+    <div style="display:flex;gap:24px;flex-wrap:wrap;margin-top:12px">
+      <div style="background:#161b22;border:1px solid #30363d;border-radius:10px;padding:20px 28px;text-align:center">
+        <div style="font-weight:700;color:#f0f6fc;font-size:1.1rem">Mudit Gupta</div>
+        <div style="font-size:.8rem;color:#8b949e;margin-top:4px">Team Lead</div>
+        <a href="https://github.com/MUDITGUPTA08" target="_blank" rel="noopener" style="font-size:.75rem">GitHub</a>
+      </div>
+      <div style="background:#161b22;border:1px solid #30363d;border-radius:10px;padding:20px 28px;text-align:center">
+        <div style="font-weight:700;color:#f0f6fc;font-size:1.1rem">Vinit Jain</div>
+        <div style="font-size:.8rem;color:#8b949e;margin-top:4px">Team Member</div>
+      </div>
     </div>
   </div>
 
@@ -555,17 +620,37 @@ POST /step      # take an action</pre>
   <div class="footer">
     <p>
       <strong>SRE Incident Commander</strong> &mdash; an
-      <a href="https://github.com/OpenEnv-ai/openenv" target="_blank" rel="noopener">OpenEnv</a>
+      <a href="https://github.com/meta-pytorch/OpenEnv" target="_blank" rel="noopener">OpenEnv</a>
       environment for the
-      <a href="https://huggingface.co/spaces" target="_blank" rel="noopener">Hugging Face Spaces</a>
-      + Meta hackathon.
+      <a href="https://huggingface.co/spaces/muditgupta08/sre-incident-commander" target="_blank" rel="noopener">Hugging Face Spaces</a>
+      + Meta PyTorch Hackathon.
     </p>
     <p style="margin-top:6px">
-      <a href="https://github.com/MUDITGUPTA08" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/MUDITGUPTA08/Triage" target="_blank" rel="noopener">Source Code</a>
       &nbsp;&middot;&nbsp; Built with FastAPI &amp; pure Python &nbsp;&middot;&nbsp;
-      No external dependencies
+      103 tests &nbsp;&middot;&nbsp; Zero external dependencies
     </p>
   </div>
+
+<script>
+async function tryReset(){
+  var btn=document.getElementById('try-btn');
+  var out=document.getElementById('try-output');
+  var task=document.getElementById('task-select').value;
+  btn.disabled=true;btn.textContent='Loading...';btn.style.background='#30363d';
+  out.textContent='Sending POST /reset ...';
+  try{
+    var resp=await fetch('/reset',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({task_id:task})});
+    var data=await resp.json();
+    out.textContent=JSON.stringify(data,null,2);
+    out.style.color='#c9d1d9';
+  }catch(e){
+    out.textContent='Error: '+e.message;out.style.color='#f85149';
+  }finally{
+    btn.disabled=false;btn.textContent='Reset Episode';btn.style.background='#238636';
+  }
+}
+</script>
 
 </div>
 </body>
