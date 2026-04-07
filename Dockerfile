@@ -12,7 +12,9 @@ RUN chown -R appuser:appuser /app
 
 USER appuser
 
-ENV PORT=7860 \
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PORT=7860 \
     HOST=0.0.0.0 \
     WORKERS=1 \
     MAX_CONCURRENT_ENVS=100 \

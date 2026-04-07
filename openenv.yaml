@@ -1,5 +1,10 @@
+spec_version: 1
 name: sre_incident_commander
 version: "1.0.0"
+type: space
+runtime: fastapi
+app: server.app:app
+port: 7860
 description: >
   AI agent training environment for SRE incident response. The agent acts as
   an Incident Commander diagnosing and resolving production infrastructure
